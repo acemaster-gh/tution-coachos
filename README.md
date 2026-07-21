@@ -13,7 +13,7 @@ the meeting and it becomes *their* site.
 
 - [x] **Phase 0** — project scaffold, design system, git repo
 - [x] **Phase 1** — marketing site / digital storefront (this is what's built)
-- [ ] **Phase 2** — auth + role-based portal shell (admin / tutor / parent)
+- [x] **Phase 2** — auth + role-based portal shell (admin / tutor / parent)
 - [ ] **Phase 3** — student dashboard & analytics (the real version of the hero mockup)
 - [ ] **Phase 4** — billing & fee automation (Razorpay)
 - [ ] **Phase 5** — content library / LMS
@@ -35,6 +35,23 @@ the meeting and it becomes *their* site.
 4. `npm run dev` to preview, `npm run build && vercel deploy` to ship.
 5. As Phases 2-6 land, each client repo gets the portal, billing, and LMS
    for free by pulling the latest from `main`.
+
+## Phase 2: auth & portal
+
+Three roles, each gated to their own area under `/portal`:
+
+- `admin@ascentlearning.example` / `demo1234`
+- `tutor@ascentlearning.example` / `demo1234`
+- `parent@ascentlearning.example` / `demo1234`
+
+Regenerate these anytime with `node scripts/seed.js`. Users live in
+`data/users.json` for now (a JSON file standing in for a real database) —
+Phase 4 swaps `src/lib/db.ts` for Postgres without touching auth, the
+proxy, or any page.
+
+Before deploying anywhere beyond your own machine: copy `.env.example` to
+`.env.local` and set a real `SESSION_SECRET` (a long random string). Without
+it, sessions sign with an insecure dev-only fallback.
 
 ## Local development
 

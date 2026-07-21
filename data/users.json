@@ -1,0 +1,24 @@
+[
+  {
+    "id": "u_admin",
+    "name": "Rajesh Kumar",
+    "email": "admin@ascentlearning.example",
+    "passwordHash": "$2b$10$k8NgCJjgR/P8M6GpSQdgAuhj6UKKdELE0Sj7lOvCuakkjKpliMDhW",
+    "role": "admin"
+  },
+  {
+    "id": "u_tutor",
+    "name": "Meena Iyer",
+    "email": "tutor@ascentlearning.example",
+    "passwordHash": "$2b$10$k8NgCJjgR/P8M6GpSQdgAuhj6UKKdELE0Sj7lOvCuakkjKpliMDhW",
+    "role": "tutor"
+  },
+  {
+    "id": "u_parent",
+    "name": "Priya Sharma",
+    "email": "parent@ascentlearning.example",
+    "passwordHash": "$2b$10$k8NgCJjgR/P8M6GpSQdgAuhj6UKKdELE0Sj7lOvCuakkjKpliMDhW",
+    "role": "parent",
+    "studentName": "Aarav Sharma"
+  }
+]
