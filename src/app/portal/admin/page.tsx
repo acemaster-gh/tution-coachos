@@ -1,10 +1,37 @@
-const cards = [
-  { label: "New enquiries this week", value: "12", note: "from the site's lead form" },
-  { label: "Fees overdue", value: "₹38,400", note: "across 9 students" },
-  { label: "Batches near capacity", value: "3 of 11", note: "Class 10 Math is full" },
-];
+import { summarizeFees } from "@/lib/fees";
+import { listStudents, getStudentStatus } from "@/lib/students";
+import { readCollection } from "@/lib/db";
+import type { Lead } from "@/lib/types";
 
-export default function AdminPortal() {
+export default async function AdminPortal() {
+  const [feeSummary, students, leads] = await Promise.all([
+    summarizeFees(),
+    listStudents(),
+    readCollection<Lead>("leads.json"),
+  ]);
+
+  const flaggedCount = students.filter((s) => getStudentStatus(s).flagged).length;
+  const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const recentLeads = leads.filter((l) => new Date(l.receivedAt).getTime() >= oneWeekAgo);
+
+  const cards = [
+    {
+      label: "New enquiries this week",
+      value: String(recentLeads.length),
+      note: recentLeads.length > 0 ? "from the site's lead form" : "none yet — share the enquiry link",
+    },
+    {
+      label: "Fees overdue",
+      value: `₹${feeSummary.overdueAmount.toLocaleString("en-IN")}`,
+      note: `across ${feeSummary.overdueCount} ${feeSummary.overdueCount === 1 ? "student" : "students"}`,
+    },
+    {
+      label: "Students flagged",
+      value: `${flaggedCount} of ${students.length}`,
+      note: "score dip or low attendance",
+    },
+  ];
+
   return (
     <div>
       <p className="font-marginalia text-2xl text-red-pen -rotate-1">at a glance</p>
@@ -20,10 +47,27 @@ export default function AdminPortal() {
         ))}
       </div>
 
+      {recentLeads.length > 0 && (
+        <div className="rounded-sm border border-rule-line bg-paper-raised divide-y divide-rule-line mb-10">
+          {recentLeads.map((l) => (
+            <div key={l.id} className="flex items-center justify-between px-5 py-3 text-sm">
+              <div>
+                <p className="font-medium text-ink">{l.parentName}</p>
+                <p className="text-ink-soft">Class {l.grade} · {l.subject} · {l.phone}</p>
+              </div>
+              <span className="text-ink-soft">{new Date(l.receivedAt).toLocaleDateString("en-IN")}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="rounded-sm border border-dashed border-rule-line p-6 text-sm text-ink-soft">
-        This is a placeholder view. Phase 4 wires these numbers to the real
-        billing and enquiry data (Razorpay + the /api/lead submissions
-        currently just logged to the server console).
+        Fees and flags are computed live from data/students.json and
+        data/fees.json. Payments run through Razorpay once
+        RAZORPAY_KEY_ID/SECRET are set in .env.local — see README. Fee
+        reminders can be triggered manually at{" "}
+        <code className="bg-paper px-1 rounded-sm">/api/billing/reminders</code>{" "}
+        or scheduled via <code className="bg-paper px-1 rounded-sm">scripts/send-reminders.js</code>.
       </div>
     </div>
   );

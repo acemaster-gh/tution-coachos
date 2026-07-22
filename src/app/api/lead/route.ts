@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { appendToCollection } from "@/lib/db";
+import type { Lead } from "@/lib/types";
 
 interface LeadPayload {
   parentName?: string;
@@ -23,9 +25,19 @@ export async function POST(request: Request) {
     );
   }
 
-  // Phase 4 hook: replace this with a write to Postgres/Prisma + a
-  // WhatsApp/email notification to the institute's admin number.
-  console.log("[lead]", { parentName, phone, grade, subject, receivedAt: new Date().toISOString() });
+  const lead: Lead = {
+    id: `lead_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    parentName,
+    phone,
+    grade,
+    subject,
+    receivedAt: new Date().toISOString(),
+  };
+
+  // JSON-file append is fine for a demo; concurrent writes under real
+  // traffic need a real DB (Phase 4 note applies here too) because this
+  // read-modify-write isn't atomic across simultaneous requests.
+  await appendToCollection<Lead>("leads.json", lead);
 
   return NextResponse.json({ ok: true });
 }
