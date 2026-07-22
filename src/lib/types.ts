@@ -61,3 +61,29 @@ export interface Lead {
   receivedAt: string;
 }
 
+export type ResourceType = "notes" | "video" | "practice";
+
+export interface Resource {
+  id: string;
+  title: string;
+  subject: string;
+  grade: string;
+  type: ResourceType;
+  url: string;
+  uploadedBy: string; // user id
+  createdAt: string;
+}
+
+export type NotificationChannel = "email" | "whatsapp" | "sms";
+
+export interface NotificationLogEntry {
+  id: string;
+  channel: NotificationChannel;
+  to: string;
+  subject?: string;
+  body: string;
+  sentAt: string;
+  ok: boolean;
+  error?: string;
+}
+

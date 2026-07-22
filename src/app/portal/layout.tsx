@@ -24,7 +24,15 @@ export default async function PortalLayout({ children }: { children: React.React
               {NAV_LABEL[session.role] ?? session.role} portal — {session.name}
             </p>
           </div>
-          <LogoutButton />
+          <nav className="flex items-center gap-6">
+            <a href={`/portal/${session.role}`} className="text-sm font-medium text-ink-soft hover:text-ink transition-colors">
+              Dashboard
+            </a>
+            <a href="/portal/library" className="text-sm font-medium text-ink-soft hover:text-ink transition-colors">
+              Library
+            </a>
+            <LogoutButton />
+          </nav>
         </div>
       </header>
       <main className="flex-1 mx-auto max-w-5xl w-full px-6 py-10">{children}</main>

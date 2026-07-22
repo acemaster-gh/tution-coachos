@@ -16,8 +16,8 @@ the meeting and it becomes *their* site.
 - [x] **Phase 2** — auth + role-based portal shell (admin / tutor / parent)
 - [x] **Phase 3** — student dashboard & analytics (the real version of the hero mockup)
 - [x] **Phase 4** — billing & fee automation (Razorpay)
-- [ ] **Phase 5** — content library / LMS
-- [ ] **Phase 6** — inquiry automation, multi-tenant polish, deploy
+- [x] **Phase 5** — content library / LMS
+- [x] **Phase 6** — inquiry automation, real notifications, multi-tenant polish
 
 ## Stack
 
@@ -35,6 +35,49 @@ the meeting and it becomes *their* site.
 4. `npm run dev` to preview, `npm run build && vercel deploy` to ship.
 5. As Phases 2-6 land, each client repo gets the portal, billing, and LMS
    for free by pulling the latest from `main`.
+
+## Phase 5: content library
+
+`/portal/library` — tutors and admins can add notes/videos/practice sets
+(`src/lib/resources.ts`, `data/resources.json`). Parents see a read-only
+view automatically filtered to their child's grade. This is the
+tutor-independence piece from the pitch: material lives on the institute's
+own portal, not with one person.
+
+## Phase 6: real notifications
+
+`src/lib/notifications.ts` is a provider-agnostic send layer — email via
+Resend, WhatsApp/SMS via Twilio — that **logs instead of failing** when
+the relevant env vars aren't set, so nothing breaks without real API
+keys. Every send attempt (real or logged) is recorded to
+`data/notifications.json` for an audit trail.
+
+`src/lib/messaging.ts` has the three templated triggers the product is
+actually pitched on:
+- **New enquiry** → emails/WhatsApps the admin (wired into `/api/lead`)
+- **Fee due/overdue** → emails/WhatsApps the parent (wired into
+  `/api/billing/reminders`)
+- **Student flagged** (score dip or attendance) → emails/WhatsApps both
+  parent and tutor (wired into `/api/alerts/check`)
+
+The alert check is deduped — `src/lib/alerts.ts` only notifies on a *new*
+flag, not every time someone loads a page, and correctly retries (instead
+of silently giving up) if a student's parent/tutor record is missing.
+
+**To go live**: set `RESEND_API_KEY`/`RESEND_FROM_EMAIL` and
+`TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`/`TWILIO_WHATSAPP_FROM`/
+`TWILIO_SMS_FROM` in `.env.local` (see `.env.example` for where to get
+each). Then schedule `node scripts/cron.js` (or hit `/api/alerts/check`
+and `/api/billing/reminders` directly) daily — Vercel Cron, a system
+crontab, or a GitHub Actions schedule all work.
+
+**A note on the JSON-file storage**: `src/lib/db.ts` now has a per-file
+lock so concurrent writes from the same server process can't corrupt a
+file (this was a real bug caught during testing — simultaneous
+notifications were interleaving writes to the same file). This does
+*not* help across multiple server instances, which is the real reason
+this whole module gets swapped for Postgres before any real client goes
+live on it.
 
 ## Phase 3: real data & the alert rule
 

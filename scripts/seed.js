@@ -32,6 +32,38 @@ async function main() {
       role: "parent",
       studentName: "Aarav Sharma",
     },
+    {
+      id: "u_parent_diya",
+      name: "Anil Patel",
+      email: "parent.diya@ascentlearning.example",
+      passwordHash,
+      role: "parent",
+      studentName: "Diya Patel",
+    },
+    {
+      id: "u_parent_kabir",
+      name: "Sunita Singh",
+      email: "parent.kabir@ascentlearning.example",
+      passwordHash,
+      role: "parent",
+      studentName: "Kabir Singh",
+    },
+    {
+      id: "u_parent_ishaan",
+      name: "Rohan Verma",
+      email: "parent.ishaan@ascentlearning.example",
+      passwordHash,
+      role: "parent",
+      studentName: "Ishaan Verma",
+    },
+    {
+      id: "u_parent_sana",
+      name: "Farah Khan",
+      email: "parent.sana@ascentlearning.example",
+      passwordHash,
+      role: "parent",
+      studentName: "Sana Khan",
+    },
   ];
 
   const outPath = path.join(__dirname, "..", "data", "users.json");

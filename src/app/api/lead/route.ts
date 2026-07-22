@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { appendToCollection } from "@/lib/db";
+import { notifyAdminOfNewLead } from "@/lib/messaging";
 import type { Lead } from "@/lib/types";
 
 interface LeadPayload {
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
   // traffic need a real DB (Phase 4 note applies here too) because this
   // read-modify-write isn't atomic across simultaneous requests.
   await appendToCollection<Lead>("leads.json", lead);
+  await notifyAdminOfNewLead(lead);
 
   return NextResponse.json({ ok: true });
 }

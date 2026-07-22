@@ -4,6 +4,31 @@ import type { User } from "./types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 
+// A poor-man's per-file mutex. Plain JSON-file storage isn't safe under
+// concurrent writes (two requests can interleave a read-modify-write and
+// corrupt the file) — this serializes writes to the same file within a
+// single server process. It does NOT help across multiple server
+// instances/processes, which is exactly why this whole module gets
+// swapped for a real database (Postgres) before this goes to production
+// with real traffic.
+const fileLocks = new Map<string, Promise<void>>();
+
+async function withFileLock<T>(fileName: string, fn: () => Promise<T>): Promise<T> {
+  const prior = fileLocks.get(fileName) ?? Promise.resolve();
+  let release!: () => void;
+  const mine = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  fileLocks.set(fileName, prior.then(() => mine));
+
+  await prior;
+  try {
+    return await fn();
+  } finally {
+    release();
+  }
+}
+
 export async function readCollection<T>(fileName: string): Promise<T[]> {
   try {
     const raw = await fs.readFile(path.join(DATA_DIR, fileName), "utf-8");
@@ -17,14 +42,23 @@ export async function readCollection<T>(fileName: string): Promise<T[]> {
 }
 
 export async function writeCollection<T>(fileName: string, data: T[]): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(path.join(DATA_DIR, fileName), JSON.stringify(data, null, 2));
+  await withFileLock(fileName, async () => {
+    await fs.mkdir(DATA_DIR, { recursive: true });
+    await fs.writeFile(path.join(DATA_DIR, fileName), JSON.stringify(data, null, 2));
+  });
 }
 
 export async function appendToCollection<T>(fileName: string, item: T): Promise<void> {
-  const existing = await readCollection<T>(fileName);
-  existing.push(item);
-  await writeCollection(fileName, existing);
+  await withFileLock(fileName, async () => {
+    const raw = await fs.readFile(path.join(DATA_DIR, fileName), "utf-8").catch((err) => {
+      if (err.code === "ENOENT") return "[]";
+      throw err;
+    });
+    const existing = JSON.parse(raw) as T[];
+    existing.push(item);
+    await fs.mkdir(DATA_DIR, { recursive: true });
+    await fs.writeFile(path.join(DATA_DIR, fileName), JSON.stringify(existing, null, 2));
+  });
 }
 
 export async function listUsers(): Promise<User[]> {
