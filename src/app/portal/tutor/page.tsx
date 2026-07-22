@@ -18,7 +18,11 @@ export default async function TutorPortal() {
             const status = getStudentStatus(s);
             const latestSubject = s.scores.at(-1)?.subject ?? "—";
             return (
-              <div key={s.id} className="flex items-center justify-between px-5 py-4">
+              <a
+                key={s.id}
+                href={`/portal/tutor/student/${s.id}`}
+                className="flex items-center justify-between px-5 py-4 hover:bg-paper transition-colors"
+              >
                 <div>
                   <p className="font-medium text-ink">{s.name}</p>
                   <p className="text-sm text-ink-soft">Class {s.grade} · {latestSubject} · {attendancePercent(s)}% attendance</p>
@@ -35,7 +39,7 @@ export default async function TutorPortal() {
                     <p className="text-xs text-ink-soft mt-1">{status.reasons.join(", ")}</p>
                   )}
                 </div>
-              </div>
+              </a>
             );
           })}
         </div>

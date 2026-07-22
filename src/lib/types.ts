@@ -59,6 +59,7 @@ export interface Lead {
   grade: string;
   subject: string;
   receivedAt: string;
+  converted?: boolean;
 }
 
 export type ResourceType = "notes" | "video" | "practice";

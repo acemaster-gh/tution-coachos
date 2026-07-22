@@ -18,6 +18,7 @@ the meeting and it becomes *their* site.
 - [x] **Phase 4** — billing & fee automation (Razorpay)
 - [x] **Phase 5** — content library / LMS
 - [x] **Phase 6** — inquiry automation, real notifications, multi-tenant polish
+- [x] **Phase 7** — data entry (attendance/scores), lead enrollment, notification audit
 
 ## Stack
 
@@ -35,6 +36,31 @@ the meeting and it becomes *their* site.
 4. `npm run dev` to preview, `npm run build && vercel deploy` to ship.
 5. As Phases 2-6 land, each client repo gets the portal, billing, and LMS
    for free by pulling the latest from `main`.
+
+## Phase 7: data entry, enrollment, and audit
+
+Three real gaps closed after actually testing the app end to end:
+
+- **Attendance/score data entry** — previously all student data was seed
+  data with no way to add to it. Tutors now click into a student
+  (`/portal/tutor/student/[id]`) to mark today's attendance or record a
+  test score. Both trigger an immediate alert re-check, so a newly-added
+  low score or absence can flag a student right away.
+- **Lead → enrolled student** — the biggest gap: admin could see a website
+  enquiry but had no way to turn it into an actual student + parent
+  portal account. `/api/admin/enroll` creates both in one step, assigns a
+  tutor, and generates a temporary password for the admin to relay to the
+  parent. Rejects duplicate emails.
+- **Notification audit log** — `/portal/admin/notifications` shows every
+  message sent (or logged, if providers aren't configured), so an admin
+  isn't limited to `data/notifications.json` in a text editor.
+
+**Keeping demo data clean**: `node scripts/reset-demo-data.js` restores
+`students.json`/`fees.json`/`resources.json` from `data/seed/` (the
+canonical snapshots), regenerates `users.json`, and empties
+`leads.json`/`notifications.json`/`alert-state.json`. Run this before a
+demo or before committing — testing generates real data (leads, scores,
+enrolled students) that shouldn't ship as if it were the seed set.
 
 ## Phase 5: content library
 

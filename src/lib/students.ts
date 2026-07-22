@@ -1,5 +1,5 @@
-import { readCollection } from "./db";
-import type { Student, TestScore } from "./types";
+import { readCollection, updateCollectionItem } from "./db";
+import type { Student, TestScore, AttendanceRecord } from "./types";
 
 export async function listStudents(): Promise<Student[]> {
   return readCollection<Student>("students.json");
@@ -70,4 +70,32 @@ export function getStudentStatus(student: Student): StudentStatus {
   }
 
   return { flagged: reasons.length > 0, reasons };
+}
+
+/** Marks (or overwrites) today's attendance for a student. */
+export async function markAttendance(studentId: string, present: boolean, date = new Date().toISOString().slice(0, 10)): Promise<Student> {
+  return updateCollectionItem<Student>(
+    "students.json",
+    (s) => s.id === studentId,
+    (student) => {
+      const record: AttendanceRecord = { date, present };
+      const existingIndex = student.attendance.findIndex((a) => a.date === date);
+      const attendance = [...student.attendance];
+      if (existingIndex >= 0) {
+        attendance[existingIndex] = record;
+      } else {
+        attendance.push(record);
+      }
+      return { ...student, attendance };
+    }
+  );
+}
+
+/** Records a new test score for a student. */
+export async function recordScore(studentId: string, score: TestScore): Promise<Student> {
+  return updateCollectionItem<Student>(
+    "students.json",
+    (s) => s.id === studentId,
+    (student) => ({ ...student, scores: [...student.scores, score] })
+  );
 }

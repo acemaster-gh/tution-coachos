@@ -3,21 +3,21 @@
     "id": "u_admin",
     "name": "Rajesh Kumar",
     "email": "admin@ascentlearning.example",
-    "passwordHash": "$2b$10$36jQUv4KYsWGkVHh6PNlMeK2P0B7EGyOKWcy/JBuWnnlawHh16xbq",
+    "passwordHash": "$2b$10$ZiPJxXZWcPzuC7LodSy0RO3/1Ds2hO4ryHO/6.PMVSfm/NNdEwoeC",
     "role": "admin"
   },
   {
     "id": "u_tutor",
     "name": "Meena Iyer",
     "email": "tutor@ascentlearning.example",
-    "passwordHash": "$2b$10$36jQUv4KYsWGkVHh6PNlMeK2P0B7EGyOKWcy/JBuWnnlawHh16xbq",
+    "passwordHash": "$2b$10$ZiPJxXZWcPzuC7LodSy0RO3/1Ds2hO4ryHO/6.PMVSfm/NNdEwoeC",
     "role": "tutor"
   },
   {
     "id": "u_parent",
     "name": "Priya Sharma",
     "email": "parent@ascentlearning.example",
-    "passwordHash": "$2b$10$36jQUv4KYsWGkVHh6PNlMeK2P0B7EGyOKWcy/JBuWnnlawHh16xbq",
+    "passwordHash": "$2b$10$ZiPJxXZWcPzuC7LodSy0RO3/1Ds2hO4ryHO/6.PMVSfm/NNdEwoeC",
     "role": "parent",
     "studentName": "Aarav Sharma"
   },
@@ -25,7 +25,7 @@
     "id": "u_parent_diya",
     "name": "Anil Patel",
     "email": "parent.diya@ascentlearning.example",
-    "passwordHash": "$2b$10$36jQUv4KYsWGkVHh6PNlMeK2P0B7EGyOKWcy/JBuWnnlawHh16xbq",
+    "passwordHash": "$2b$10$ZiPJxXZWcPzuC7LodSy0RO3/1Ds2hO4ryHO/6.PMVSfm/NNdEwoeC",
     "role": "parent",
     "studentName": "Diya Patel"
   },
@@ -33,7 +33,7 @@
     "id": "u_parent_kabir",
     "name": "Sunita Singh",
     "email": "parent.kabir@ascentlearning.example",
-    "passwordHash": "$2b$10$36jQUv4KYsWGkVHh6PNlMeK2P0B7EGyOKWcy/JBuWnnlawHh16xbq",
+    "passwordHash": "$2b$10$ZiPJxXZWcPzuC7LodSy0RO3/1Ds2hO4ryHO/6.PMVSfm/NNdEwoeC",
     "role": "parent",
     "studentName": "Kabir Singh"
   },
@@ -41,7 +41,7 @@
     "id": "u_parent_ishaan",
     "name": "Rohan Verma",
     "email": "parent.ishaan@ascentlearning.example",
-    "passwordHash": "$2b$10$36jQUv4KYsWGkVHh6PNlMeK2P0B7EGyOKWcy/JBuWnnlawHh16xbq",
+    "passwordHash": "$2b$10$ZiPJxXZWcPzuC7LodSy0RO3/1Ds2hO4ryHO/6.PMVSfm/NNdEwoeC",
     "role": "parent",
     "studentName": "Ishaan Verma"
   },
@@ -49,7 +49,7 @@
     "id": "u_parent_sana",
     "name": "Farah Khan",
     "email": "parent.sana@ascentlearning.example",
-    "passwordHash": "$2b$10$36jQUv4KYsWGkVHh6PNlMeK2P0B7EGyOKWcy/JBuWnnlawHh16xbq",
+    "passwordHash": "$2b$10$ZiPJxXZWcPzuC7LodSy0RO3/1Ds2hO4ryHO/6.PMVSfm/NNdEwoeC",
     "role": "parent",
     "studentName": "Sana Khan"
   }

@@ -61,6 +61,33 @@ export async function appendToCollection<T>(fileName: string, item: T): Promise<
   });
 }
 
+/**
+ * Finds the first item matching `match` and replaces it with whatever
+ * `updater` returns. Throws if no item matches. Locked the same way as
+ * append/write, so this is safe to call concurrently with other writes
+ * to the same file.
+ */
+export async function updateCollectionItem<T>(
+  fileName: string,
+  match: (item: T) => boolean,
+  updater: (item: T) => T
+): Promise<T> {
+  return withFileLock(fileName, async () => {
+    const raw = await fs.readFile(path.join(DATA_DIR, fileName), "utf-8").catch((err) => {
+      if (err.code === "ENOENT") return "[]";
+      throw err;
+    });
+    const existing = JSON.parse(raw) as T[];
+    const index = existing.findIndex(match);
+    if (index === -1) throw new Error("No matching item found to update.");
+    const updated = updater(existing[index]);
+    existing[index] = updated;
+    await fs.mkdir(DATA_DIR, { recursive: true });
+    await fs.writeFile(path.join(DATA_DIR, fileName), JSON.stringify(existing, null, 2));
+    return updated;
+  });
+}
+
 export async function listUsers(): Promise<User[]> {
   return readCollection<User>("users.json");
 }

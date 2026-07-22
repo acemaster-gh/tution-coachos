@@ -1,18 +1,21 @@
 import { summarizeFees } from "@/lib/fees";
 import { listStudents, getStudentStatus } from "@/lib/students";
-import { readCollection } from "@/lib/db";
+import { readCollection, listUsers } from "@/lib/db";
+import EnrollLeadForm from "@/components/EnrollLeadForm";
 import type { Lead } from "@/lib/types";
 
 export default async function AdminPortal() {
-  const [feeSummary, students, leads] = await Promise.all([
+  const [feeSummary, students, leads, users] = await Promise.all([
     summarizeFees(),
     listStudents(),
     readCollection<Lead>("leads.json"),
+    listUsers(),
   ]);
 
+  const tutors = users.filter((u) => u.role === "tutor").map((u) => ({ id: u.id, name: u.name }));
   const flaggedCount = students.filter((s) => getStudentStatus(s).flagged).length;
   const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  const recentLeads = leads.filter((l) => new Date(l.receivedAt).getTime() >= oneWeekAgo);
+  const recentLeads = [...leads].filter((l) => new Date(l.receivedAt).getTime() >= oneWeekAgo).reverse();
 
   const cards = [
     {
@@ -48,16 +51,30 @@ export default async function AdminPortal() {
       </div>
 
       {recentLeads.length > 0 && (
-        <div className="rounded-sm border border-rule-line bg-paper-raised divide-y divide-rule-line mb-10">
-          {recentLeads.map((l) => (
-            <div key={l.id} className="flex items-center justify-between px-5 py-3 text-sm">
-              <div>
-                <p className="font-medium text-ink">{l.parentName}</p>
-                <p className="text-ink-soft">Class {l.grade} · {l.subject} · {l.phone}</p>
+        <div className="mb-10">
+          <p className="font-medium text-ink mb-3">Recent enquiries</p>
+          <div className="rounded-sm border border-rule-line bg-paper-raised divide-y divide-rule-line">
+            {recentLeads.map((l) => (
+              <div key={l.id} className="px-5 py-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-ink">{l.parentName}</p>
+                    <p className="text-ink-soft">Class {l.grade} · {l.subject} · {l.phone}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-ink-soft block">{new Date(l.receivedAt).toLocaleDateString("en-IN")}</span>
+                    {l.converted ? (
+                      <span className="text-xs text-ink-soft">Enrolled ✓</span>
+                    ) : tutors.length > 0 ? (
+                      <EnrollLeadForm leadId={l.id} parentName={l.parentName} grade={l.grade} subject={l.subject} tutors={tutors} />
+                    ) : (
+                      <span className="text-xs text-ink-soft">Add a tutor account first</span>
+                    )}
+                  </div>
+                </div>
               </div>
-              <span className="text-ink-soft">{new Date(l.receivedAt).toLocaleDateString("en-IN")}</span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
@@ -67,7 +84,11 @@ export default async function AdminPortal() {
         RAZORPAY_KEY_ID/SECRET are set in .env.local — see README. Fee
         reminders can be triggered manually at{" "}
         <code className="bg-paper px-1 rounded-sm">/api/billing/reminders</code>{" "}
-        or scheduled via <code className="bg-paper px-1 rounded-sm">scripts/send-reminders.js</code>.
+        or scheduled via <code className="bg-paper px-1 rounded-sm">scripts/cron.js</code>.
+        See the{" "}
+        <a href="/portal/admin/notifications" className="text-red-pen underline">
+          full notification log
+        </a>.
       </div>
     </div>
   );
