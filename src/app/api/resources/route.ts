@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { listResources, addResource } from "@/lib/resources";
+import { resourceSchema, firstIssueMessage } from "@/lib/validation";
 
 export async function GET() {
   const session = await getSession();
@@ -17,29 +18,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Only tutors and admins can add resources." }, { status: 403 });
   }
 
-  let body: { title?: string; subject?: string; grade?: string; type?: string; url?: string };
+  let raw: unknown;
   try {
-    body = await request.json();
+    raw = await request.json();
   } catch {
     return NextResponse.json({ error: "Malformed request." }, { status: 400 });
   }
 
-  const { title, subject, grade, type, url } = body;
-  if (!title || !subject || !grade || !type || !url) {
-    return NextResponse.json({ error: "Title, subject, grade, type, and url are all required." }, { status: 400 });
-  }
-  if (!["notes", "video", "practice"].includes(type)) {
-    return NextResponse.json({ error: "Type must be notes, video, or practice." }, { status: 400 });
+  const parsed = resourceSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json({ error: firstIssueMessage(parsed.error) }, { status: 400 });
   }
 
-  const resource = await addResource({
-    title,
-    subject,
-    grade,
-    type: type as "notes" | "video" | "practice",
-    url,
-    uploadedBy: session.sub,
-  });
+  const resource = await addResource({ ...parsed.data, uploadedBy: session.sub });
 
   return NextResponse.json({ ok: true, resource });
 }

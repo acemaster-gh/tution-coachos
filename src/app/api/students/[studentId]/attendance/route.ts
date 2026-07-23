@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { getStudentById, markAttendance } from "@/lib/students";
 import { runAlertCheck } from "@/lib/alerts";
+import { attendanceSchema, firstIssueMessage } from "@/lib/validation";
 
 export async function POST(request: Request, { params }: { params: Promise<{ studentId: string }> }) {
   const session = await getSession();
@@ -17,17 +18,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ stu
     return NextResponse.json({ error: "This student isn't on your roster." }, { status: 403 });
   }
 
-  let body: { present?: boolean; date?: string };
+  let raw: unknown;
   try {
-    body = await request.json();
+    raw = await request.json();
   } catch {
     return NextResponse.json({ error: "Malformed request." }, { status: 400 });
   }
-  if (typeof body.present !== "boolean") {
-    return NextResponse.json({ error: "present (true/false) is required." }, { status: 400 });
+  const parsed = attendanceSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json({ error: firstIssueMessage(parsed.error) }, { status: 400 });
   }
 
-  const updated = await markAttendance(studentId, body.present, body.date);
+  const updated = await markAttendance(studentId, parsed.data.present, parsed.data.date);
 
   // Attendance can newly cross the 75% threshold — check for a fresh alert.
   await runAlertCheck().catch((err) => console.error("[alerts] post-attendance check failed", err));

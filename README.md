@@ -19,6 +19,7 @@ the meeting and it becomes *their* site.
 - [x] **Phase 5** — content library / LMS
 - [x] **Phase 6** — inquiry automation, real notifications, multi-tenant polish
 - [x] **Phase 7** — data entry (attendance/scores), lead enrollment, notification audit
+- [x] **Phase 8** — Supabase migration (real Postgres + RLS + Auth), replacing all JSON-file storage
 
 ## Stack
 
@@ -36,6 +37,66 @@ the meeting and it becomes *their* site.
 4. `npm run dev` to preview, `npm run build && vercel deploy` to ship.
 5. As Phases 2-6 land, each client repo gets the portal, billing, and LMS
    for free by pulling the latest from `main`.
+
+## Phase 8: Supabase migration
+
+> **Note on the sections below**: Phases 3–7's descriptions reference
+> `data/*.json` files and scripts like `scripts/seed.js` /
+> `scripts/reset-demo-data.js`. **All of that was removed in Phase 8** —
+> those sections are kept as a record of what each phase built at the
+> time, not as current instructions. Everything now lives in Postgres;
+> see this section and `DEPLOYMENT.md` for what's actually true today.
+
+**The single biggest architectural change in this project.** Everything
+that used to read/write `data/*.json` now queries real Postgres via
+Supabase, with Row Level Security as the actual security boundary — not
+just application-code checks. See `DEPLOYMENT.md` for the full runbook;
+short version:
+
+- `supabase/migrations/0001_init.sql` — full schema (institutes, users,
+  students, attendance, test_scores, fees, leads, resources,
+  notifications, alert_state) with RLS on every table. **This was tested
+  against a real local Postgres 16 instance** during development — not
+  just checked for valid syntax. Table creation, every check constraint,
+  and every RLS policy were verified to actually enforce the intended
+  rules (cross-institute isolation, parent-can-only-see-own-child,
+  tutor-can-only-edit-own-students all confirmed with real impersonated
+  queries). It has *not* been run against Supabase's hosted Postgres
+  specifically — that's the one gap between "tested" and "verified in
+  production."
+- `src/utils/supabase/` — `server.ts` (Server Components/Route Handlers),
+  `client.ts` (Client Components), `admin.ts` (service-role, bypasses
+  RLS — used only for the Razorpay webhook, lead capture from anonymous
+  visitors, and admin-created parent accounts during enrollment),
+  `middleware.ts` (session refresh, called from `proxy.ts`).
+- Auth moved from custom JWT/bcrypt to Supabase Auth entirely —
+  `src/lib/auth.ts` is deleted, `src/lib/session.ts` now wraps
+  `supabase.auth.getUser()`.
+- `src/lib/db.ts` (the generic JSON-collection helper) is deleted.
+  Every module that used it (`students.ts`, `fees.ts`, `resources.ts`,
+  new `leads.ts`/`users.ts`) now queries Supabase directly, mapping
+  snake_case DB rows back to the same camelCase shapes the UI already
+  expected — so pages and components needed **zero changes**.
+- **A real bug caught during this migration**: `listStudents()`/
+  `listFees()` default to the RLS-scoped request client, which is
+  correct for pages with a logged-in user — but the alert-check and
+  fee-reminder cron jobs run with *no* user session at all. Under RLS
+  that means every row gets silently filtered out. Both now accept an
+  optional Supabase client override, and the cron routes pass the admin
+  client explicitly instead of silently seeing zero data.
+- **Not fully solved**: enrollment creates an auth account, a profile
+  row, and a student row as three separate calls, not one atomic
+  transaction (Supabase's JS client doesn't expose multi-table
+  transactions directly). There's best-effort cleanup if a later step
+  fails, but a Postgres function (`rpc`) doing all three inserts
+  atomically would be the correct hardening beyond this phase.
+
+**What I could not test**: anything requiring a live Supabase project
+(this sandbox has no network access to `*.supabase.co`) or a live
+Razorpay/Twilio/Resend account. The schema and RLS policies were verified
+against real Postgres; the actual Supabase-hosted behavior, and every
+env-var-gated integration, needs verification on a real deployment — see
+the checklist at the bottom of `DEPLOYMENT.md`.
 
 ## Phase 7: data entry, enrollment, and audit
 
@@ -156,6 +217,10 @@ Before deploying anywhere beyond your own machine: copy `.env.example` to
 it, sessions sign with an insecure dev-only fallback.
 
 ## Local development
+
+**Requires a Supabase project first** — see `DEPLOYMENT.md` steps 1–3
+(run the migration, bootstrap the first institute/admin, fill in
+`.env.local`). Once that's done:
 
 ```bash
 npm install

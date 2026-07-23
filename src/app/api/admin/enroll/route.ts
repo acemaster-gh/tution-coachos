@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { enrollStudent } from "@/lib/enrollment";
-import { getUserByEmail } from "@/lib/db";
+import { emailExists } from "@/lib/users";
+import { enrollSchema, firstIssueMessage } from "@/lib/validation";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -10,34 +11,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Only admins can enroll students." }, { status: 403 });
   }
 
-  let body: {
-    leadId?: string;
-    studentName?: string;
-    grade?: string;
-    subject?: string;
-    tutorId?: string;
-    parentName?: string;
-    parentEmail?: string;
-  };
+  let raw: unknown;
   try {
-    body = await request.json();
+    raw = await request.json();
   } catch {
     return NextResponse.json({ error: "Malformed request." }, { status: 400 });
   }
 
-  const { studentName, grade, subject, tutorId, parentName, parentEmail, leadId } = body;
-  if (!studentName || !grade || !subject || !tutorId || !parentName || !parentEmail) {
-    return NextResponse.json(
-      { error: "studentName, grade, subject, tutorId, parentName, and parentEmail are all required." },
-      { status: 400 }
-    );
+  const parsed = enrollSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json({ error: firstIssueMessage(parsed.error) }, { status: 400 });
   }
 
-  const existing = await getUserByEmail(parentEmail);
-  if (existing) {
+  if (await emailExists(parsed.data.parentEmail)) {
     return NextResponse.json({ error: "An account with that email already exists." }, { status: 409 });
   }
 
-  const result = await enrollStudent({ leadId, studentName, grade, subject, tutorId, parentName, parentEmail });
+  const result = await enrollStudent(parsed.data);
   return NextResponse.json({ ok: true, ...result });
 }

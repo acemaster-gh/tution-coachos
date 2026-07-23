@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { getStudentById, recordScore } from "@/lib/students";
 import { runAlertCheck } from "@/lib/alerts";
+import { scoreSchema, firstIssueMessage } from "@/lib/validation";
 
 export async function POST(request: Request, { params }: { params: Promise<{ studentId: string }> }) {
   const session = await getSession();
@@ -17,25 +18,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ stu
     return NextResponse.json({ error: "This student isn't on your roster." }, { status: 403 });
   }
 
-  let body: { subject?: string; score?: number; maxScore?: number; date?: string };
+  let raw: unknown;
   try {
-    body = await request.json();
+    raw = await request.json();
   } catch {
     return NextResponse.json({ error: "Malformed request." }, { status: 400 });
   }
-  const { subject, score, maxScore } = body;
-  if (!subject || typeof score !== "number" || typeof maxScore !== "number" || maxScore <= 0) {
-    return NextResponse.json({ error: "subject, score, and maxScore are all required (score/maxScore as numbers)." }, { status: 400 });
-  }
-  if (score < 0 || score > maxScore) {
-    return NextResponse.json({ error: "score must be between 0 and maxScore." }, { status: 400 });
+  // Coerce score/maxScore from form input (arrives as strings from FormData-derived JSON).
+  const candidate = raw as Record<string, unknown>;
+  if (typeof candidate.score === "string") candidate.score = Number(candidate.score);
+  if (typeof candidate.maxScore === "string") candidate.maxScore = Number(candidate.maxScore);
+
+  const parsed = scoreSchema.safeParse(candidate);
+  if (!parsed.success) {
+    return NextResponse.json({ error: firstIssueMessage(parsed.error) }, { status: 400 });
   }
 
   const updated = await recordScore(studentId, {
-    subject,
-    score,
-    maxScore,
-    date: body.date || new Date().toISOString().slice(0, 10),
+    subject: parsed.data.subject,
+    score: parsed.data.score,
+    maxScore: parsed.data.maxScore,
+    date: parsed.data.date || new Date().toISOString().slice(0, 10),
   });
 
   // A new score can start (or resolve) a three-test dip — check for a fresh alert.

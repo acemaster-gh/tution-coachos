@@ -1,5 +1,4 @@
-import { readCollection } from "@/lib/db";
-import type { NotificationLogEntry } from "@/lib/types";
+import { listNotifications } from "@/lib/notifications";
 
 const CHANNEL_LABEL: Record<string, string> = {
   email: "Email",
@@ -8,8 +7,7 @@ const CHANNEL_LABEL: Record<string, string> = {
 };
 
 export default async function NotificationsLog() {
-  const all = await readCollection<NotificationLogEntry>("notifications.json");
-  const recent = [...all].sort((a, b) => b.sentAt.localeCompare(a.sentAt)).slice(0, 100);
+  const recent = await listNotifications(100);
 
   return (
     <div>
@@ -17,7 +15,7 @@ export default async function NotificationsLog() {
       <p className="font-marginalia text-2xl text-red-pen -rotate-1 mt-3">audit trail</p>
       <h1 className="font-display text-3xl font-semibold mb-2">Notifications sent</h1>
       <p className="text-sm text-ink-soft mb-8">
-        Last {recent.length} of {all.length} total. Every automated message — real or logged-only when
+        Last {recent.length}. Every automated message — real or logged-only when
         providers aren&apos;t configured — is recorded here.
       </p>
 

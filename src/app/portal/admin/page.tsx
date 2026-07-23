@@ -1,21 +1,20 @@
 import { summarizeFees } from "@/lib/fees";
 import { listStudents, getStudentStatus } from "@/lib/students";
-import { readCollection, listUsers } from "@/lib/db";
+import { listLeads } from "@/lib/leads";
+import { listTutors } from "@/lib/users";
 import EnrollLeadForm from "@/components/EnrollLeadForm";
-import type { Lead } from "@/lib/types";
 
 export default async function AdminPortal() {
-  const [feeSummary, students, leads, users] = await Promise.all([
+  const [feeSummary, students, leads, tutors] = await Promise.all([
     summarizeFees(),
     listStudents(),
-    readCollection<Lead>("leads.json"),
-    listUsers(),
+    listLeads(),
+    listTutors(),
   ]);
 
-  const tutors = users.filter((u) => u.role === "tutor").map((u) => ({ id: u.id, name: u.name }));
   const flaggedCount = students.filter((s) => getStudentStatus(s).flagged).length;
   const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  const recentLeads = [...leads].filter((l) => new Date(l.receivedAt).getTime() >= oneWeekAgo).reverse();
+  const recentLeads = leads.filter((l) => new Date(l.receivedAt).getTime() >= oneWeekAgo);
 
   const cards = [
     {
@@ -79,10 +78,9 @@ export default async function AdminPortal() {
       )}
 
       <div className="rounded-sm border border-dashed border-rule-line p-6 text-sm text-ink-soft">
-        Fees and flags are computed live from data/students.json and
-        data/fees.json. Payments run through Razorpay once
-        RAZORPAY_KEY_ID/SECRET are set in .env.local — see README. Fee
-        reminders can be triggered manually at{" "}
+        Fees and flags are computed live from Supabase. Payments run
+        through Razorpay once RAZORPAY_KEY_ID/SECRET are set — see
+        README. Fee reminders can be triggered manually at{" "}
         <code className="bg-paper px-1 rounded-sm">/api/billing/reminders</code>{" "}
         or scheduled via <code className="bg-paper px-1 rounded-sm">scripts/cron.js</code>.
         See the{" "}

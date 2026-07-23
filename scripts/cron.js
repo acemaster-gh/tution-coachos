@@ -8,7 +8,11 @@
 const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
 
 async function hit(path) {
-  const res = await fetch(`${BASE_URL}${path}`);
+  const headers = {};
+  if (process.env.CRON_SECRET) {
+    headers["Authorization"] = `Bearer ${process.env.CRON_SECRET}`;
+  }
+  const res = await fetch(`${BASE_URL}${path}`, { headers });
   const body = await res.json();
   console.log(`${path} ->`, JSON.stringify(body, null, 2));
 }

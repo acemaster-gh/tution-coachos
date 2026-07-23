@@ -58,7 +58,7 @@ export default function PayFeeButton({ feeId, amount }: PayFeeButtonProps) {
         description: `Fee ${feeId}`,
         handler: () => {
           setStatus("idle");
-          setMessage("Payment complete. It may take a minute to reflect here.");
+          setMessage("Checkout complete — waiting for payment confirmation, which can take a minute to reflect here.");
         },
       });
       rzp.open();
