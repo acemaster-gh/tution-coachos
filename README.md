@@ -20,6 +20,7 @@ the meeting and it becomes *their* site.
 - [x] **Phase 6** — inquiry automation, real notifications, multi-tenant polish
 - [x] **Phase 7** — data entry (attendance/scores), lead enrollment, notification audit
 - [x] **Phase 8** — Supabase migration (real Postgres + RLS + Auth), replacing all JSON-file storage
+- [x] **Phase 9** — composite risk scoring, atomic enrollment, security hardening (see `ROADMAP_AND_THREAT_MODEL.md`)
 
 ## Stack
 

@@ -1,8 +1,23 @@
+import { randomBytes } from "node:crypto";
 import { createAdminClient } from "@/utils/supabase/admin";
-import { markLeadConverted } from "./leads";
+
+export class EnrollmentError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "EnrollmentError";
+    this.status = status;
+  }
+}
 
 function generateTempPassword(): string {
-  return Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6).toUpperCase();
+  // crypto.randomBytes is a CSPRNG (cryptographically secure pseudo-random
+  // number generator) — unlike Math.random(), its output isn't
+  // predictable from prior outputs. Math.random() uses a non-cryptographic
+  // PRNG (xorshift128+ in V8) explicitly not designed to resist prediction
+  // attacks; using it for anything security-relevant (passwords, tokens)
+  // is a real, if narrow, vulnerability class.
+  return randomBytes(9).toString("base64url"); // 12 chars, ~72 bits of entropy
 }
 
 export interface EnrollInput {
@@ -16,18 +31,19 @@ export interface EnrollInput {
 }
 
 /**
- * Creates a real Supabase Auth account for the parent + a matching
- * profile row + the student record, in that order. Uses the ADMIN
- * client throughout — creating an auth.users row on someone else's
- * behalf requires the service-role admin API (a regular signUp() call
- * only works for the person signing themselves up).
+ * Creates the parent's Supabase Auth account, then calls the
+ * `enroll_student_records` Postgres function (supabase/migrations/
+ * 0002_atomic_enrollment.sql) to insert the profile + student rows as a
+ * single atomic transaction — if the student insert fails, the profile
+ * insert rolls back too, automatically, instead of the previous
+ * approach's manual best-effort cleanup of separate calls.
  *
- * Not wrapped in a database transaction — Supabase's JS client doesn't
- * expose multi-table transactions directly. If the student insert fails
- * after the auth user was created, you'd have an orphaned auth account
- * with no student attached. For production hardening beyond this phase,
- * consider a Postgres function (rpc) that does all three inserts
- * atomically instead of three separate client calls.
+ * HONEST LIMIT (documented in the migration too): the auth account
+ * creation itself is a separate HTTP call to Supabase's auth service,
+ * not something a Postgres transaction can see — true atomicity across
+ * "create an auth account" and "write DB rows" isn't achievable in one
+ * transaction. If the RPC call fails after the auth account was
+ * created, we still fall back to deleting that auth account manually.
  */
 export async function enrollStudent(input: EnrollInput): Promise<{ tempPassword: string; studentId: string; parentId: string }> {
   const admin = createAdminClient();
@@ -39,48 +55,44 @@ export async function enrollStudent(input: EnrollInput): Promise<{ tempPassword:
   const { data: authUser, error: authError } = await admin.auth.admin.createUser({
     email: input.parentEmail,
     password: tempPassword,
-    email_confirm: true, // skip email verification for an admin-created account
+    email_confirm: true,
   });
   if (authError || !authUser.user) {
-    throw new Error(`Failed to create parent account: ${authError?.message ?? "unknown error"}`, { cause: authError });
+    // Supabase's auth API enforces email uniqueness atomically at the
+    // database level — checking "does this email exist?" first and
+    // creating the account second (as this code used to do) is a
+    // textbook TOCTOU race: two enrollments for the same email racing
+    // the check-then-act window can both pass the check. Removing the
+    // pre-check and instead reacting to the atomic operation's own
+    // failure eliminates the race entirely, rather than narrowing it.
+    const message = authError?.message ?? "";
+    const isDuplicate = /already.*registered|already exists|duplicate/i.test(message);
+    throw new EnrollmentError(
+      isDuplicate ? "An account with that email already exists." : `Failed to create parent account: ${message || "unknown error"}`,
+      isDuplicate ? 409 : 500
+    );
   }
   const parentId = authUser.user.id;
 
-  const { error: profileError } = await admin.from("users").insert({
-    id: parentId,
-    institute_id: instituteId,
-    name: input.parentName,
-    email: input.parentEmail,
-    role: "parent",
+  const { data: studentId, error: rpcError } = await admin.rpc("enroll_student_records", {
+    p_parent_id: parentId,
+    p_institute_id: instituteId,
+    p_parent_name: input.parentName,
+    p_parent_email: input.parentEmail,
+    p_student_name: input.studentName,
+    p_grade: input.grade,
+    p_tutor_id: input.tutorId,
+    p_lead_id: input.leadId ?? null,
   });
-  if (profileError) {
-    // Best-effort cleanup so we don't leave an orphaned auth account with
-    // no profile row — see the transaction caveat in the doc comment above.
+
+  if (rpcError || !studentId) {
+    // The RPC's two DB inserts are already guaranteed atomic with each
+    // other (tested — see 0002_atomic_enrollment.sql). This cleanup only
+    // handles the boundary a DB transaction can't cover: the auth
+    // account that was created just above, outside any transaction.
     await admin.auth.admin.deleteUser(parentId).catch(() => {});
-    throw new Error(`Failed to create parent profile: ${profileError.message}`, { cause: profileError });
+    throw new Error(`Failed to create student record: ${rpcError?.message ?? "unknown error"}`, { cause: rpcError });
   }
 
-  const { data: student, error: studentError } = await admin
-    .from("students")
-    .insert({
-      institute_id: instituteId,
-      name: input.studentName,
-      grade: input.grade,
-      tutor_id: input.tutorId,
-      parent_id: parentId,
-    })
-    .select("id")
-    .single();
-  if (studentError || !student) {
-    await admin.auth.admin.deleteUser(parentId).catch(() => {});
-    throw new Error(`Failed to create student record: ${studentError?.message ?? "unknown error"}`, { cause: studentError });
-  }
-
-  if (input.leadId) {
-    await markLeadConverted(input.leadId, student.id).catch((err) => {
-      console.error("[enrollment] enrollment succeeded but marking the lead converted failed:", err);
-    });
-  }
-
-  return { tempPassword, studentId: student.id, parentId };
+  return { tempPassword, studentId: studentId as string, parentId };
 }

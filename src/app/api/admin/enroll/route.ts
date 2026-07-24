@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
-import { enrollStudent } from "@/lib/enrollment";
-import { emailExists } from "@/lib/users";
+import { enrollStudent, EnrollmentError } from "@/lib/enrollment";
 import { enrollSchema, firstIssueMessage } from "@/lib/validation";
 
 export async function POST(request: Request) {
@@ -23,10 +22,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: firstIssueMessage(parsed.error) }, { status: 400 });
   }
 
-  if (await emailExists(parsed.data.parentEmail)) {
-    return NextResponse.json({ error: "An account with that email already exists." }, { status: 409 });
+  try {
+    const result = await enrollStudent(parsed.data);
+    return NextResponse.json({ ok: true, ...result });
+  } catch (err) {
+    if (err instanceof EnrollmentError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+    console.error("[enroll] unexpected failure", err);
+    return NextResponse.json({ error: "Enrollment failed unexpectedly." }, { status: 500 });
   }
-
-  const result = await enrollStudent(parsed.data);
-  return NextResponse.json({ ok: true, ...result });
 }

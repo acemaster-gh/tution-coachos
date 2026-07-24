@@ -1,21 +1,38 @@
 import { getSession } from "@/lib/session";
-import { getStudentsByTutor, getStudentStatus, attendancePercent } from "@/lib/students";
+import { getStudentsByTutor, attendancePercent } from "@/lib/students";
+import { listFees } from "@/lib/fees";
+import { computeRiskScore, type RiskTier } from "@/lib/risk";
+
+const TIER_STYLE: Record<RiskTier, string> = {
+  high: "text-red-pen border-red-pen/40",
+  medium: "text-highlighter border-highlighter/60 bg-highlighter/10",
+  low: "text-ink-soft border-rule-line",
+};
+const TIER_LABEL: Record<RiskTier, string> = { high: "High risk", medium: "Watch", low: "On track" };
 
 export default async function TutorPortal() {
   const session = await getSession();
-  const students = session ? await getStudentsByTutor(session.sub) : [];
+  const [students, allFees] = session
+    ? await Promise.all([getStudentsByTutor(session.sub), listFees()])
+    : [[], []];
+
+  const withRisk = students
+    .map((s) => ({
+      student: s,
+      risk: computeRiskScore(s, allFees.filter((f) => f.studentId === s.id)),
+    }))
+    .sort((a, b) => b.risk.score - a.risk.score); // highest risk first
 
   return (
     <div>
       <p className="font-marginalia text-2xl text-red-pen -rotate-1">your batches</p>
       <h1 className="font-display text-3xl font-semibold mb-8">Student roster</h1>
 
-      {students.length === 0 ? (
+      {withRisk.length === 0 ? (
         <p className="text-ink-soft">No students assigned to you yet.</p>
       ) : (
         <div className="rounded-sm border border-rule-line bg-paper-raised divide-y divide-rule-line">
-          {students.map((s) => {
-            const status = getStudentStatus(s);
+          {withRisk.map(({ student: s, risk }) => {
             const latestSubject = s.scores.at(-1)?.subject ?? "—";
             return (
               <a
@@ -28,15 +45,13 @@ export default async function TutorPortal() {
                   <p className="text-sm text-ink-soft">Class {s.grade} · {latestSubject} · {attendancePercent(s)}% attendance</p>
                 </div>
                 <div className="text-right">
-                  <span
-                    className={`inline-block text-xs font-semibold uppercase tracking-wide border rounded-sm px-2 py-1 ${
-                      status.flagged ? "text-red-pen border-red-pen/40" : "text-ink-soft border-rule-line"
-                    }`}
-                  >
-                    {status.flagged ? "Needs attention" : "On track"}
+                  <span className={`inline-block text-xs font-semibold uppercase tracking-wide border rounded-sm px-2 py-1 ${TIER_STYLE[risk.tier]}`}>
+                    {TIER_LABEL[risk.tier]} · {risk.score}
                   </span>
-                  {status.flagged && (
-                    <p className="text-xs text-ink-soft mt-1">{status.reasons.join(", ")}</p>
+                  {risk.tier !== "low" && (
+                    <p className="text-xs text-ink-soft mt-1 max-w-[220px]">
+                      {risk.factors.filter((f) => f.points > 0).map((f) => f.detail).join(" · ")}
+                    </p>
                   )}
                 </div>
               </a>
@@ -46,9 +61,10 @@ export default async function TutorPortal() {
       )}
 
       <div className="mt-6 rounded-sm border border-dashed border-rule-line p-6 text-sm text-ink-soft">
-        Live roster, computed from data/students.json. A student is flagged
-        automatically when their score drops across three consecutive tests,
-        or their attendance falls below 75%.
+        Sorted by risk score (0–100): score trend, recent attendance, and
+        fee status combined. This is a broader signal than the alert
+        emails — those still only fire on the specific three-test-dip or
+        low-attendance rule, unchanged from before.
       </div>
     </div>
   );

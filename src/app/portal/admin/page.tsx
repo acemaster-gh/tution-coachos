@@ -1,18 +1,25 @@
-import { summarizeFees } from "@/lib/fees";
-import { listStudents, getStudentStatus } from "@/lib/students";
+import { summarizeFees, listFees } from "@/lib/fees";
+import { listStudents } from "@/lib/students";
 import { listLeads } from "@/lib/leads";
 import { listTutors } from "@/lib/users";
+import { computeRiskScore } from "@/lib/risk";
 import EnrollLeadForm from "@/components/EnrollLeadForm";
 
 export default async function AdminPortal() {
-  const [feeSummary, students, leads, tutors] = await Promise.all([
+  const [feeSummary, students, allFees, leads, tutors] = await Promise.all([
     summarizeFees(),
     listStudents(),
+    listFees(),
     listLeads(),
     listTutors(),
   ]);
 
-  const flaggedCount = students.filter((s) => getStudentStatus(s).flagged).length;
+  const riskByTier = { high: 0, medium: 0, low: 0 };
+  for (const s of students) {
+    const { tier } = computeRiskScore(s, allFees.filter((f) => f.studentId === s.id));
+    riskByTier[tier]++;
+  }
+
   const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const recentLeads = leads.filter((l) => new Date(l.receivedAt).getTime() >= oneWeekAgo);
 
@@ -28,9 +35,9 @@ export default async function AdminPortal() {
       note: `across ${feeSummary.overdueCount} ${feeSummary.overdueCount === 1 ? "student" : "students"}`,
     },
     {
-      label: "Students flagged",
-      value: `${flaggedCount} of ${students.length}`,
-      note: "score dip or low attendance",
+      label: "High-risk students",
+      value: `${riskByTier.high} of ${students.length}`,
+      note: `${riskByTier.medium} more on watch`,
     },
   ];
 
