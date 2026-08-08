@@ -7,6 +7,10 @@
 // ─────────────────────────────────────────────────────────────
 
 export const siteConfig = {
+  // ── Flip this to false before selling to a client ──
+  // When true, the login page shows demo credentials.
+  demoMode: true,
+
   // Identity
   instituteName: "Ascent Learning Centre",
   tagline: "Where a dropping grade gets caught in week two, not report-card day.",

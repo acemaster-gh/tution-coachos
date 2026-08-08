@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { enrollStudent } from "@/lib/enrollment";
-import { getUserByEmail } from "@/lib/db";
+import { DuplicateError } from "@/lib/db";
+import { logAuditEvent } from "@/lib/audit";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -33,11 +34,21 @@ export async function POST(request: Request) {
     );
   }
 
-  const existing = await getUserByEmail(parentEmail);
-  if (existing) {
-    return NextResponse.json({ error: "An account with that email already exists." }, { status: 409 });
+  // No pre-flight email check — enrollStudent uses appendToCollectionUnique
+  // which atomically checks inside the file lock, eliminating the TOCTOU race
+  // (Security fix #1). DuplicateError is thrown if the email already exists.
+  try {
+    const result = await enrollStudent({ leadId, studentName, grade, subject, tutorId, parentName, parentEmail });
+    logAuditEvent({
+      userId: session.sub, userName: session.name, role: session.role,
+      action: "enroll_student", target: result.studentId,
+      detail: `Enrolled ${studentName} (parent: ${parentName}, ${parentEmail}).`,
+    }).catch(() => {});
+    return NextResponse.json({ ok: true, ...result });
+  } catch (err) {
+    if (err instanceof DuplicateError) {
+      return NextResponse.json({ error: err.message }, { status: 409 });
+    }
+    throw err; // unexpected — let the global error handler deal with it
   }
-
-  const result = await enrollStudent({ leadId, studentName, grade, subject, tutorId, parentName, parentEmail });
-  return NextResponse.json({ ok: true, ...result });
 }

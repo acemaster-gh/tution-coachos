@@ -2,6 +2,17 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { User } from "./types";
 
+/**
+ * Thrown when appendToCollectionUnique detects a duplicate — callers can
+ * catch this specifically instead of parsing error messages.
+ */
+export class DuplicateError extends Error {
+  constructor(message = "Duplicate entry.") {
+    super(message);
+    this.name = "DuplicateError";
+  }
+}
+
 const DATA_DIR = path.join(process.cwd(), "data");
 
 // A poor-man's per-file mutex. Plain JSON-file storage isn't safe under
@@ -55,6 +66,33 @@ export async function appendToCollection<T>(fileName: string, item: T): Promise<
       throw err;
     });
     const existing = JSON.parse(raw) as T[];
+    existing.push(item);
+    await fs.mkdir(DATA_DIR, { recursive: true });
+    await fs.writeFile(path.join(DATA_DIR, fileName), JSON.stringify(existing, null, 2));
+  });
+}
+
+/**
+ * Like appendToCollection, but atomically checks a uniqueness predicate
+ * inside the file lock before inserting. Throws DuplicateError if any
+ * existing item matches `isDuplicate`. This eliminates the TOCTOU race
+ * of a separate "check then insert" pattern.
+ */
+export async function appendToCollectionUnique<T>(
+  fileName: string,
+  item: T,
+  isDuplicate: (existing: T) => boolean,
+  duplicateMessage = "Duplicate entry."
+): Promise<void> {
+  await withFileLock(fileName, async () => {
+    const raw = await fs.readFile(path.join(DATA_DIR, fileName), "utf-8").catch((err) => {
+      if (err.code === "ENOENT") return "[]";
+      throw err;
+    });
+    const existing = JSON.parse(raw) as T[];
+    if (existing.some(isDuplicate)) {
+      throw new DuplicateError(duplicateMessage);
+    }
     existing.push(item);
     await fs.mkdir(DATA_DIR, { recursive: true });
     await fs.writeFile(path.join(DATA_DIR, fileName), JSON.stringify(existing, null, 2));

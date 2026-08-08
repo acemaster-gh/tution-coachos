@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Razorpay from "razorpay";
 import { getSession } from "@/lib/session";
 import { listFees } from "@/lib/fees";
+import { getPendingOrder, setPendingOrder } from "@/lib/payment-orders";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -29,6 +30,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "This fee is already marked paid." }, { status: 400 });
   }
 
+  // ── Idempotency: return existing pending order if one exists ───────
+  // Prevents the "spam the Pay button" problem (Security item #9).
+  const existing = getPendingOrder(fee.id);
+  if (existing) {
+    return NextResponse.json({ order: existing.order, keyId: existing.keyId });
+  }
+
   const keyId = process.env.RAZORPAY_KEY_ID;
   const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
@@ -51,6 +59,10 @@ export async function POST(request: Request) {
       receipt: fee.id,
       notes: { feeId: fee.id, studentId: fee.studentId },
     });
+
+    // Cache the order so a retry within the next 30 minutes returns it
+    // instead of creating a duplicate.
+    setPendingOrder(fee.id, (order as { id: string }).id, keyId, order);
 
     return NextResponse.json({ order, keyId });
   } catch (err) {

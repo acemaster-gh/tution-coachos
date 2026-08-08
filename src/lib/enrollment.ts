@@ -1,11 +1,20 @@
+import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
-import { appendToCollection, updateCollectionItem } from "./db";
+import { appendToCollectionUnique, appendToCollection, updateCollectionItem } from "./db";
 import type { User, Student, Lead } from "./types";
 
+/**
+ * Generate a cryptographically secure temporary password.
+ *
+ * Uses crypto.randomBytes instead of Math.random() — the latter is a
+ * non-cryptographic PRNG whose output is predictable given enough
+ * samples (Security fix #6 from the threat model).
+ *
+ * base64url encoding produces URL-safe, readable-ish characters and
+ * 6 random bytes → 8 characters of output.
+ */
 function generateTempPassword(): string {
-  // Readable-ish random password for a founder to hand a parent over the
-  // phone — not meant to be memorable long-term, just easy to relay once.
-  return Math.random().toString(36).slice(2, 10);
+  return crypto.randomBytes(6).toString("base64url");
 }
 
 export interface EnrollInput {
@@ -18,12 +27,21 @@ export interface EnrollInput {
   parentEmail: string;
 }
 
+/**
+ * Enrolls a student by creating a parent user account and a student
+ * record atomically. The email uniqueness check happens inside the
+ * file lock (via appendToCollectionUnique), eliminating the TOCTOU
+ * race of the old "check email → create user" two-step pattern
+ * (Security fix #1 from the threat model).
+ */
 export async function enrollStudent(input: EnrollInput): Promise<{ tempPassword: string; studentId: string; parentId: string }> {
   const tempPassword = generateTempPassword();
   const passwordHash = await bcrypt.hash(tempPassword, 10);
-  const suffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-  const parentId = `u_${suffix}`;
-  const studentId = `s_${suffix}`;
+
+  // crypto.randomUUID() is a CSPRNG-backed UUID v4 — no more
+  // Date.now() + Math.random() predictability.
+  const parentId = `u_${crypto.randomUUID()}`;
+  const studentId = `s_${crypto.randomUUID()}`;
 
   const newUser: User = {
     id: parentId,
@@ -33,7 +51,15 @@ export async function enrollStudent(input: EnrollInput): Promise<{ tempPassword:
     role: "parent",
     studentName: input.studentName,
   };
-  await appendToCollection<User>("users.json", newUser);
+
+  // Atomic uniqueness check: if another request enrolled the same email
+  // between our check and our write, DuplicateError is thrown — no race.
+  await appendToCollectionUnique<User>(
+    "users.json",
+    newUser,
+    (existing) => existing.email.toLowerCase() === input.parentEmail.toLowerCase(),
+    "An account with that email already exists."
+  );
 
   const newStudent: Student = {
     id: studentId,

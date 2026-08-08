@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { getStudentById, markAttendance } from "@/lib/students";
 import { runAlertCheck } from "@/lib/alerts";
+import { logAuditEvent } from "@/lib/audit";
 
 export async function POST(request: Request, { params }: { params: Promise<{ studentId: string }> }) {
   const session = await getSession();
@@ -28,6 +29,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ stu
   }
 
   const updated = await markAttendance(studentId, body.present, body.date);
+
+  logAuditEvent({
+    userId: session.sub, userName: session.name, role: session.role,
+    action: "mark_attendance", target: studentId,
+    detail: `Marked ${student.name} as ${body.present ? "present" : "absent"}${body.date ? " on " + body.date : ""}.`,
+  }).catch(() => {});
 
   // Attendance can newly cross the 75% threshold — check for a fresh alert.
   await runAlertCheck().catch((err) => console.error("[alerts] post-attendance check failed", err));

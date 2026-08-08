@@ -1,1 +1,127 @@
-[]
+[
+  {
+    "id": "notif_1784804415719_ovkol8",
+    "channel": "email",
+    "to": "parent.ishaan@ascentlearning.example",
+    "subject": "A note on Ishaan Verma's progress",
+    "body": "Ascent Learning Centre: a quick note on Ishaan Verma — attendance at 50%. Your tutor has been notified and will follow up. Full detail is in the parent portal.",
+    "sentAt": "2026-07-23T11:00:15.720Z",
+    "ok": true
+  },
+  {
+    "id": "notif_1784804415720_s6arz4",
+    "channel": "email",
+    "to": "tutor@ascentlearning.example",
+    "subject": "Roster flag — Ishaan Verma",
+    "body": "Flag on your roster: Ishaan Verma (Class 9) — attendance at 50%. Please follow up.",
+    "sentAt": "2026-07-23T11:00:15.720Z",
+    "ok": true
+  },
+  {
+    "id": "notif_1784804415749_1h5vlk",
+    "channel": "email",
+    "to": "parent.sana@ascentlearning.example",
+    "subject": "A note on Sana Khan's progress",
+    "body": "Ascent Learning Centre: a quick note on Sana Khan — three-test score dip in progress. Your tutor has been notified and will follow up. Full detail is in the parent portal.",
+    "sentAt": "2026-07-23T11:00:15.749Z",
+    "ok": true
+  },
+  {
+    "id": "notif_1784804415749_bxhx4j",
+    "channel": "email",
+    "to": "tutor@ascentlearning.example",
+    "subject": "Roster flag — Sana Khan",
+    "body": "Flag on your roster: Sana Khan (Class 9) — three-test score dip in progress. Please follow up.",
+    "sentAt": "2026-07-23T11:00:15.749Z",
+    "ok": true
+  },
+  {
+    "id": "notif_1784804430983_nbh0oe",
+    "channel": "email",
+    "to": "parent.ishaan@ascentlearning.example",
+    "subject": "A note on Ishaan Verma's progress",
+    "body": "Ascent Learning Centre: a quick note on Ishaan Verma — three-test score dip in progress, attendance at 50%. Your tutor has been notified and will follow up. Full detail is in the parent portal.",
+    "sentAt": "2026-07-23T11:00:30.984Z",
+    "ok": true
+  },
+  {
+    "id": "notif_1784804430985_d69ckn",
+    "channel": "email",
+    "to": "tutor@ascentlearning.example",
+    "subject": "Roster flag — Ishaan Verma",
+    "body": "Flag on your roster: Ishaan Verma (Class 9) — three-test score dip in progress, attendance at 50%. Please follow up.",
+    "sentAt": "2026-07-23T11:00:30.985Z",
+    "ok": true
+  },
+  {
+    "id": "notif_1784804433430_cv88uc",
+    "channel": "email",
+    "to": "parent.ishaan@ascentlearning.example",
+    "subject": "A note on Ishaan Verma's progress",
+    "body": "Ascent Learning Centre: a quick note on Ishaan Verma — attendance at 50%. Your tutor has been notified and will follow up. Full detail is in the parent portal.",
+    "sentAt": "2026-07-23T11:00:33.430Z",
+    "ok": true
+  },
+  {
+    "id": "notif_1784804433430_aytks4",
+    "channel": "email",
+    "to": "tutor@ascentlearning.example",
+    "subject": "Roster flag — Ishaan Verma",
+    "body": "Flag on your roster: Ishaan Verma (Class 9) — attendance at 50%. Please follow up.",
+    "sentAt": "2026-07-23T11:00:33.430Z",
+    "ok": true
+  },
+  {
+    "id": "notif_1784804443493_8onvgn",
+    "channel": "email",
+    "to": "parent.ishaan@ascentlearning.example",
+    "subject": "A note on Ishaan Verma's progress",
+    "body": "Ascent Learning Centre: a quick note on Ishaan Verma — three-test score dip in progress, attendance at 50%. Your tutor has been notified and will follow up. Full detail is in the parent portal.",
+    "sentAt": "2026-07-23T11:00:43.493Z",
+    "ok": true
+  },
+  {
+    "id": "notif_1784804443493_0s5t20",
+    "channel": "email",
+    "to": "tutor@ascentlearning.example",
+    "subject": "Roster flag — Ishaan Verma",
+    "body": "Flag on your roster: Ishaan Verma (Class 9) — three-test score dip in progress, attendance at 50%. Please follow up.",
+    "sentAt": "2026-07-23T11:00:43.493Z",
+    "ok": true
+  },
+  {
+    "id": "notif_1784804459556_c4mi43",
+    "channel": "email",
+    "to": "parent.ishaan@ascentlearning.example",
+    "subject": "A note on Ishaan Verma's progress",
+    "body": "Ascent Learning Centre: a quick note on Ishaan Verma — attendance at 50%. Your tutor has been notified and will follow up. Full detail is in the parent portal.",
+    "sentAt": "2026-07-23T11:00:59.556Z",
+    "ok": true
+  },
+  {
+    "id": "notif_1784804459556_av2ova",
+    "channel": "email",
+    "to": "tutor@ascentlearning.example",
+    "subject": "Roster flag — Ishaan Verma",
+    "body": "Flag on your roster: Ishaan Verma (Class 9) — attendance at 50%. Please follow up.",
+    "sentAt": "2026-07-23T11:00:59.556Z",
+    "ok": true
+  },
+  {
+    "id": "notif_1784924429949_k5uyqg",
+    "channel": "email",
+    "to": "admissions@ascentlearning.example",
+    "subject": "New enquiry — Harish Yadav",
+    "body": "New enquiry: Harish Yadav (0000000000) — Class 9, Chemistry. Received 25/7/2026, 1:50:29 am.",
+    "sentAt": "2026-07-24T20:20:29.950Z",
+    "ok": true
+  },
+  {
+    "id": "notif_1784924429950_owonqz",
+    "channel": "whatsapp",
+    "to": "+91 98765 43210",
+    "body": "New enquiry: Harish Yadav (0000000000) — Class 9, Chemistry. Received 25/7/2026, 1:50:29 am.",
+    "sentAt": "2026-07-24T20:20:29.950Z",
+    "ok": true
+  }
+]

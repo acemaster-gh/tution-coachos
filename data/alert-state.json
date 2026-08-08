@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "studentId": "s_ishaan",
+    "reasonsKey": "attendance at 50%",
+    "notifiedAt": "2026-07-23T11:00:59.615Z"
+  },
+  {
+    "studentId": "s_sana",
+    "reasonsKey": "three-test score dip in progress",
+    "notifiedAt": "2026-07-23T11:00:15.784Z"
+  }
+]

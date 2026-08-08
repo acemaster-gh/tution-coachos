@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { appendToCollection } from "@/lib/db";
 import { notifyAdminOfNewLead } from "@/lib/messaging";
+import { checkLeadRate, getClientIP } from "@/lib/rate-limit";
 import type { Lead } from "@/lib/types";
 
 interface LeadPayload {
@@ -11,6 +12,21 @@ interface LeadPayload {
 }
 
 export async function POST(request: Request) {
+  // ── Rate limiting (Security fix #4) ────────────────────────────────
+  // 3 submissions per minute per IP — prevents spam that racks up
+  // notification costs (each lead triggers Twilio + Resend calls).
+  const ip = getClientIP(request);
+  const limit = checkLeadRate(ip);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Too many enquiries — please wait a minute and try again." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(limit.retryAfterSeconds) },
+      }
+    );
+  }
+
   let body: LeadPayload;
   try {
     body = await request.json();

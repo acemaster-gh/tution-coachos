@@ -38,5 +38,25 @@
     "url": "https://example.com/notes/newtons-laws.pdf",
     "uploadedBy": "u_tutor",
     "createdAt": "2026-06-18T10:00:00.000Z"
+  },
+  {
+    "title": "Mole Concep: Theory",
+    "subject": "Chemistry",
+    "grade": "11",
+    "type": "video",
+    "url": "https://youtu.be/pmxB4oROK84?si=2hygzDAYX_58e4MD",
+    "uploadedBy": "u_tutor",
+    "id": "res_1784804351282_bf1xsq",
+    "createdAt": "2026-07-23T10:59:11.282Z"
+  },
+  {
+    "title": "Mole Concep: Theory",
+    "subject": "Chemistry",
+    "grade": "11",
+    "type": "video",
+    "url": "https://youtu.be/pmxB4oROK84?si=2hygzDAX_58e4MD",
+    "uploadedBy": "u_tutor",
+    "id": "res_1784804357663_7ub601",
+    "createdAt": "2026-07-23T10:59:17.663Z"
   }
 ]

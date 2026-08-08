@@ -1,189 +1,340 @@
 # CoachOS
 
-A resellable web platform for coaching centres / tutoring institutes, built
-around the five problems that actually cost these businesses students and
-founder-hours: retention (no data on who's slipping), fee collection,
-local visibility vs. big ed-tech chains, tutor dependency, and admin load.
+**A resellable web platform for coaching centres and tutoring institutes.**
 
-**The pitch to a client is this landing page itself** — it's the demo you show
-a coaching-centre owner. Swap `src/config/site.ts` with their details before
-the meeting and it becomes *their* site.
+Built to solve the five problems that actually cost these businesses students and founder-hours: poor student retention (no data on who's slipping), fee collection delays, local visibility vs. big ed-tech chains, tutor dependency, and admin overload.
 
-## Status: Phase 1 of 6 complete
+**The business model:** clone this repo per client, edit one config file (`src/config/site.ts`), deploy in 15 minutes, charge a monthly SaaS fee. The landing page *is* the sales pitch — show it to a coaching-centre owner with their name on it.
 
-- [x] **Phase 0** — project scaffold, design system, git repo
-- [x] **Phase 1** — marketing site / digital storefront (this is what's built)
-- [x] **Phase 2** — auth + role-based portal shell (admin / tutor / parent)
-- [x] **Phase 3** — student dashboard & analytics (the real version of the hero mockup)
-- [x] **Phase 4** — billing & fee automation (Razorpay)
-- [x] **Phase 5** — content library / LMS
-- [x] **Phase 6** — inquiry automation, real notifications, multi-tenant polish
-- [x] **Phase 7** — data entry (attendance/scores), lead enrollment, notification audit
+---
 
-## Stack
+## Live Demo
+> Login at `/login` with any of the credentials below
 
-- Next.js 15 (App Router, TypeScript)
-- Tailwind CSS v4
-- Config-driven branding (`src/config/site.ts` — the one file you edit per client)
+| Role | Email | Password |
+|---|---|---|
+| Admin | `admin@ascentlearning.example` | `demo1234` |
+| Tutor | `tutor@ascentlearning.example` | `demo1234` |
+| Parent | `parent@ascentlearning.example` | `demo1234` |
 
-## Reselling this to a new client
+---
 
-1. Duplicate this repo (or branch it) per client.
-2. Edit **only** `src/config/site.ts`: name, tagline, city, subjects, contact
-   info, colors, stats, testimonials.
-3. Restore real fonts per `FONTS.md` (only needed because this sandbox
-   blocks external font fetches — not an issue on your machine or Vercel).
-4. `npm run dev` to preview, `npm run build && vercel deploy` to ship.
-5. As Phases 2-6 land, each client repo gets the portal, billing, and LMS
-   for free by pulling the latest from `main`.
+## What's Built
 
-## Phase 7: data entry, enrollment, and audit
+### Marketing Site (`/`)
+- Animated hero with live dashboard preview
+- Stats counter, problem grid, testimonials carousel
+- Pricing section with toggle (monthly/yearly)
+- FAQ accordion, enquiry lead form
+- Full SEO metadata, OG tags, scroll progress bar
 
-Three real gaps closed after actually testing the app end to end:
+### Auth & Portal (`/portal`)
+- Session-based login with bcrypt password hashing
+- Role-based access: **Admin**, **Tutor**, **Parent**
+- Glassmorphism header with gradient role badges
+- Mobile tab-bar navigation
 
-- **Attendance/score data entry** — previously all student data was seed
-  data with no way to add to it. Tutors now click into a student
-  (`/portal/tutor/student/[id]`) to mark today's attendance or record a
-  test score. Both trigger an immediate alert re-check, so a newly-added
-  low score or absence can flag a student right away.
-- **Lead → enrolled student** — the biggest gap: admin could see a website
-  enquiry but had no way to turn it into an actual student + parent
-  portal account. `/api/admin/enroll` creates both in one step, assigns a
-  tutor, and generates a temporary password for the admin to relay to the
-  parent. Rejects duplicate emails.
-- **Notification audit log** — `/portal/admin/notifications` shows every
-  message sent (or logged, if providers aren't configured), so an admin
-  isn't limited to `data/notifications.json` in a text editor.
+### Admin Portal (`/portal/admin`)
+- Live enquiry feed from lead form submissions
+- Enroll a lead → creates student + parent portal account in one click
+- Fees overdue summary (total ₹ amount + student count)
+- Flagged student list with reasons
+- Quick-action buttons: run alert check, send fee reminders, view notification log
 
-**Keeping demo data clean**: `node scripts/reset-demo-data.js` restores
-`students.json`/`fees.json`/`resources.json` from `data/seed/` (the
-canonical snapshots), regenerates `users.json`, and empties
-`leads.json`/`notifications.json`/`alert-state.json`. Run this before a
-demo or before committing — testing generates real data (leads, scores,
-enrolled students) that shouldn't ship as if it were the seed set.
+### Tutor Portal (`/portal/tutor`)
+- Student roster split into "Needs attention" / "On track"
+- Click any student → mark today's attendance, record a test score
+- Full score history with colored severity bars (green/amber/red)
 
-## Phase 5: content library
+### Parent Portal (`/portal/parent`)
+- Live 4-stat grid: attendance %, tests logged, fee status, overall status
+- Progress chart (SVG, animated) from real score data
+- Pay overdue fee via Razorpay inline checkout
 
-`/portal/library` — tutors and admins can add notes/videos/practice sets
-(`src/lib/resources.ts`, `data/resources.json`). Parents see a read-only
-view automatically filtered to their child's grade. This is the
-tutor-independence piece from the pitch: material lives on the institute's
-own portal, not with one person.
+### Content Library (`/portal/library`)
+- Tutors/admins upload notes, videos, practice sets
+- Parents see material filtered to their child's grade
+- Resources grouped by subject with type icons
 
-## Phase 6: real notifications
+### Notification System
+- Email via [Resend](https://resend.com), WhatsApp/SMS via [Twilio](https://twilio.com)
+- **Logs instead of failing** when keys aren't set — nothing breaks in dev
+- Full audit log at `/portal/admin/notifications`
+- Three automated triggers: new enquiry → admin, fee due → parent, student flagged → parent + tutor
 
-`src/lib/notifications.ts` is a provider-agnostic send layer — email via
-Resend, WhatsApp/SMS via Twilio — that **logs instead of failing** when
-the relevant env vars aren't set, so nothing breaks without real API
-keys. Every send attempt (real or logged) is recorded to
-`data/notifications.json` for an audit trail.
+### Billing
+- Razorpay order creation and checkout widget
+- Fee reminder cron (`scripts/send-reminders.js`)
 
-`src/lib/messaging.ts` has the three templated triggers the product is
-actually pitched on:
-- **New enquiry** → emails/WhatsApps the admin (wired into `/api/lead`)
-- **Fee due/overdue** → emails/WhatsApps the parent (wired into
-  `/api/billing/reminders`)
-- **Student flagged** (score dip or attendance) → emails/WhatsApps both
-  parent and tutor (wired into `/api/alerts/check`)
+---
 
-The alert check is deduped — `src/lib/alerts.ts` only notifies on a *new*
-flag, not every time someone loads a page, and correctly retries (instead
-of silently giving up) if a student's parent/tutor record is missing.
+## Tech Stack
 
-**To go live**: set `RESEND_API_KEY`/`RESEND_FROM_EMAIL` and
-`TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`/`TWILIO_WHATSAPP_FROM`/
-`TWILIO_SMS_FROM` in `.env.local` (see `.env.example` for where to get
-each). Then schedule `node scripts/cron.js` (or hit `/api/alerts/check`
-and `/api/billing/reminders` directly) daily — Vercel Cron, a system
-crontab, or a GitHub Actions schedule all work.
+| Layer | Choice |
+|---|---|
+| Framework | Next.js 16 (App Router, TypeScript) |
+| Styling | Tailwind CSS v4 + custom design system |
+| Auth | bcrypt + signed JWT sessions |
+| Database | JSON files (dev) → swap to Supabase/Postgres for production |
+| Payments | Razorpay |
+| Email | Resend |
+| WhatsApp/SMS | Twilio |
+| Hosting | Vercel (recommended) |
 
-**A note on the JSON-file storage**: `src/lib/db.ts` now has a per-file
-lock so concurrent writes from the same server process can't corrupt a
-file (this was a real bug caught during testing — simultaneous
-notifications were interleaving writes to the same file). This does
-*not* help across multiple server instances, which is the real reason
-this whole module gets swapped for Postgres before any real client goes
-live on it.
+---
 
-## Phase 3: real data & the alert rule
-
-`data/students.json` now holds real test scores and attendance. Two
-distinct rules live in `src/lib/students.ts`:
-
-- `isCurrentlyDipping` — only the **trailing three tests**; this drives the
-  live "needs attention" flag, so a student who recovered goes back to
-  "on track" instead of staying flagged forever.
-- `hasThreeTestDip` — any three-test dip in the *whole* history; used only
-  for the illustrative chart annotation (the hero graphic and the parent
-  dashboard), where showing "here's the dip we caught" is still useful
-  even after it's resolved.
-
-Demo data deliberately covers all three cases: Aarav and Kabir already
-recovered (on track), Ishaan is flagged on attendance, Sana is flagged
-mid-dip (the scenario the whole product is pitched on).
-
-## Phase 4: fees & payments
-
-`data/fees.json` holds fee records; `src/lib/fees.ts` computes overdue/
-pending totals and which fees need a reminder. Three pieces:
-
-- **Parent-facing payment** — `/api/billing/create-order` creates a real
-  Razorpay order; `PayFeeButton` opens Razorpay's checkout widget. Without
-  `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET` set, it fails with a clear
-  message instead of crashing — set test-mode keys in `.env.local` to try
-  it live (get them free at dashboard.razorpay.com after signup).
-- **Admin visibility** — the admin dashboard shows real overdue totals and
-  flagged-student counts, computed live from the JSON data.
-- **Reminders** — `node scripts/send-reminders.js` logs who's due/overdue
-  for a fee (stand-in for an actual WhatsApp/email send). Schedule this as
-  a daily cron once deployed; Phase 6 wires in the real send.
-
-## Phase 2: auth & portal
-
-Three roles, each gated to their own area under `/portal`:
-
-- `admin@ascentlearning.example` / `demo1234`
-- `tutor@ascentlearning.example` / `demo1234`
-- `parent@ascentlearning.example` / `demo1234`
-
-Regenerate these anytime with `node scripts/seed.js`. Users live in
-`data/users.json` for now (a JSON file standing in for a real database) —
-Phase 4 swaps `src/lib/db.ts` for Postgres without touching auth, the
-proxy, or any page.
-
-Before deploying anywhere beyond your own machine: copy `.env.example` to
-`.env.local` and set a real `SESSION_SECRET` (a long random string). Without
-it, sessions sign with an insecure dev-only fallback.
-
-## Local development
+## Local Development
 
 ```bash
+# 1. Install dependencies
 npm install
-npm run dev       # http://localhost:3000
-npm run build      # production build
+
+# 2. Copy env file and fill in secrets (see section below)
+cp .env.example .env.local
+
+# 3. Start dev server
+npm run dev
+# → http://localhost:3000
+
+# 4. Reset demo data (run before demos or before committing)
+node scripts/reset-demo-data.js
 ```
 
-## Where things live
+---
 
+## Environment Variables
+
+Copy `.env.example` to `.env.local` and fill in the values:
+
+```env
+# REQUIRED for production — long random string for signing sessions
+SESSION_SECRET=
+
+# Razorpay (payments) — get test keys free at dashboard.razorpay.com
+RAZORPAY_KEY_ID=
+RAZORPAY_KEY_SECRET=
+
+# Resend (email) — free at resend.com
+RESEND_API_KEY=
+RESEND_FROM_EMAIL=
+
+# Twilio (WhatsApp / SMS)
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_WHATSAPP_FROM=
+TWILIO_SMS_FROM=
+
+# Where admin alerts land (falls back to site.ts contact info if unset)
+ADMIN_NOTIFY_EMAIL=
+ADMIN_NOTIFY_PHONE=
+```
+
+> **Without any of these**, the app still runs fully. Payments show "not configured", notifications log to console. Only `SESSION_SECRET` is required for a secure production deployment.
+
+---
+
+## Deploying to Production (Vercel + Supabase)
+
+### Step 1 — Push to GitHub
+The repo is already at `https://github.com/acemaster-gh/tution-coachos`
+
+### Step 2 — Create a Vercel project
+1. Go to [vercel.com](https://vercel.com) → New Project → Import from GitHub
+2. Select `acemaster-gh/tution-coachos`
+3. Framework: **Next.js** (auto-detected)
+4. Add all env vars from `.env.example` in the Vercel dashboard
+
+### Step 3 — Swap JSON storage for Supabase (for real clients)
+The JSON-file storage in `src/lib/db.ts` is intentionally simple for demos.
+For a real client deployment, replace it with Supabase:
+
+1. Create a free Supabase project at [supabase.com](https://supabase.com)
+2. Run the schema below in the Supabase SQL editor
+3. Add `SUPABASE_URL` and `SUPABASE_ANON_KEY` to your env vars
+4. Replace the functions in `src/lib/db.ts` with Supabase client calls
+
+**Supabase schema (run once):**
+```sql
+create table users (
+  id text primary key,
+  name text not null,
+  email text unique not null,
+  password_hash text not null,
+  role text not null check (role in ('admin','tutor','parent')),
+  student_id text,
+  created_at timestamptz default now()
+);
+
+create table students (
+  id text primary key,
+  name text not null,
+  grade text not null,
+  tutor_id text,
+  parent_id text,
+  created_at timestamptz default now()
+);
+
+create table scores (
+  id text primary key default gen_random_uuid(),
+  student_id text references students(id),
+  subject text not null,
+  score numeric not null,
+  max_score numeric not null,
+  date date not null,
+  created_at timestamptz default now()
+);
+
+create table attendance (
+  id text primary key default gen_random_uuid(),
+  student_id text references students(id),
+  date date not null,
+  present boolean not null,
+  created_at timestamptz default now(),
+  unique(student_id, date)
+);
+
+create table fees (
+  id text primary key,
+  student_id text references students(id),
+  amount numeric not null,
+  due_date date not null,
+  status text not null default 'pending',
+  paid_at timestamptz,
+  created_at timestamptz default now()
+);
+
+create table leads (
+  id text primary key,
+  parent_name text not null,
+  phone text not null,
+  grade text not null,
+  subject text not null,
+  received_at timestamptz default now(),
+  converted boolean default false
+);
+
+create table resources (
+  id text primary key,
+  title text not null,
+  subject text not null,
+  grade text not null,
+  type text not null check (type in ('notes','video','practice')),
+  url text not null,
+  uploaded_by text,
+  uploaded_at timestamptz default now()
+);
+
+create table notifications (
+  id text primary key,
+  channel text not null,
+  to_address text not null,
+  subject text,
+  body text not null,
+  sent_at timestamptz default now(),
+  ok boolean default true,
+  error text
+);
+```
+
+### Step 4 — Set up Razorpay (payments)
+1. Sign up at [dashboard.razorpay.com](https://dashboard.razorpay.com)
+2. Get test-mode keys → add to Vercel env vars
+3. When ready for real payments, switch to live keys
+
+### Step 5 — Set up notifications
+- **Email**: Sign up at [resend.com](https://resend.com), get API key, add `RESEND_API_KEY` and `RESEND_FROM_EMAIL`
+- **WhatsApp/SMS**: Sign up at [twilio.com](https://twilio.com), get credentials, add the four `TWILIO_*` vars
+- **Cron**: In Vercel, add a Cron Job to call `/api/alerts/check` and `/api/billing/reminders` daily
+
+---
+
+## Reselling to a New Client
+
+1. **Fork or duplicate** this repo (one repo per client, or use branches)
+2. **Edit only** `src/config/site.ts`:
+   - `instituteName`, `tagline`, `city`, `phone`, `whatsapp`
+   - `subjects` array (what they teach)
+   - `stats` (their actual numbers: students, years, results)
+   - `testimonials` (replace with real parent quotes)
+3. `npm run dev` to preview with their branding
+4. Deploy to Vercel with a custom domain (e.g., `portal.theirinstitute.com`)
+5. Add their API keys for Razorpay, Resend, Twilio
+
+**Each client gets**: their own branded site, their own portal, their own data — fully isolated.
+
+---
+
+## Contributing (for collaborators)
+
+```bash
+# Clone
+git clone https://github.com/acemaster-gh/tution-coachos.git
+cd tution-coachos
+
+# Install
+npm install
+
+# Set up env
+cp .env.example .env.local
+# Edit .env.local — SESSION_SECRET is the only one required for local dev
+
+# Start dev server
+npm run dev
+
+# Before committing — reset demo data so test entries don't get committed
+node scripts/reset-demo-data.js
+
+# Create a branch for your work
+git checkout -b feature/your-feature-name
+
+# Push and open a PR to main
+git push origin feature/your-feature-name
+```
+
+### Project structure
 ```
 src/
-  config/site.ts        <- per-client branding, edit this per sale
+  config/site.ts          ← per-client branding (the ONE file to edit per sale)
   app/
-    layout.tsx           <- fonts + metadata
-    page.tsx              <- assembles the landing page
-    api/lead/route.ts      <- enquiry form handler (Phase 4: wire to real DB)
-  components/
-    Nav.tsx, Hero.tsx, DashboardPreview.tsx, Stats.tsx,
-    ProblemGrid.tsx, Testimonials.tsx, LeadForm.tsx, Footer.tsx
+    page.tsx              ← marketing landing page
+    login/page.tsx        ← auth page
+    portal/               ← all role-based portal pages
+    api/                  ← all API routes
+  components/             ← all UI components
+  lib/                    ← business logic (students, fees, notifications, db)
+data/
+  students.json           ← student records (replaced by Supabase in prod)
+  users.json              ← user accounts
+  fees.json               ← fee records
+  leads.json              ← enquiry submissions
+  resources.json          ← library content
+  seed/                   ← canonical demo data (used by reset script)
+scripts/
+  reset-demo-data.js      ← restore clean demo state
+  seed.js                 ← regenerate users
+  cron.js                 ← manual trigger for daily jobs
 ```
 
-## Using Claude vs. Gemini on this project
+### Key rules
+- **One config file per client** — never hardcode institute names/details anywhere except `src/config/site.ts`
+- **Reset before committing** — run `node scripts/reset-demo-data.js` so test data doesn't ship
+- **Server components by default** — only add `"use client"` when you need hooks or browser event handlers
+- **No secrets in code** — all API keys go in `.env.local` (gitignored)
 
-- **Claude** - architecture, app code, data models, API/DB integrations,
-  anything that needs multi-file consistency or debugging.
-- **Gemini Pro** - marketing copy variants per client vertical (JEE prep vs.
-  primary-school tutoring reads very differently), OG/social images,
-  brainstorming pricing pitches for prospects.
+---
 
-Keep `src/config/site.ts` as the single source of truth either tool writes
-into - that's what keeps the two from stepping on each other.
+## What's Left / Roadmap
+
+| Item | Status |
+|---|---|
+| JSON → Supabase/Postgres | Designed, not wired up — intentional for demo simplicity |
+| Multi-tenant (one deploy, many clients) | Not built — current model is one repo per client |
+| Mobile app (parent notifications) | Not planned — PWA push notifications could be added |
+| AI tutor insights | Could use Gemini API via Firebase AI Logic |
+
+---
+
+## Security
+
+See [`SECURITY.md`](./SECURITY.md) for the full security posture.
+Key points: bcrypt password hashing, signed JWT sessions, input sanitisation on all API routes, rate limiting on auth endpoints, Content Security Policy headers.

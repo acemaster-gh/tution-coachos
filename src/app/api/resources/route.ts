@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { listResources, addResource } from "@/lib/resources";
+import { logAuditEvent } from "@/lib/audit";
 
 export async function GET() {
   const session = await getSession();
@@ -40,6 +41,12 @@ export async function POST(request: Request) {
     url,
     uploadedBy: session.sub,
   });
+
+  logAuditEvent({
+    userId: session.sub, userName: session.name, role: session.role,
+    action: "add_resource", target: resource.id,
+    detail: `Added ${type} resource "${title}" for Class ${grade} ${subject}.`,
+  }).catch(() => {});
 
   return NextResponse.json({ ok: true, resource });
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { getStudentById, recordScore } from "@/lib/students";
 import { runAlertCheck } from "@/lib/alerts";
+import { logAuditEvent } from "@/lib/audit";
 
 export async function POST(request: Request, { params }: { params: Promise<{ studentId: string }> }) {
   const session = await getSession();
@@ -37,6 +38,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ stu
     maxScore,
     date: body.date || new Date().toISOString().slice(0, 10),
   });
+
+  logAuditEvent({
+    userId: session.sub, userName: session.name, role: session.role,
+    action: "record_score", target: studentId,
+    detail: `Recorded ${subject} score ${score}/${maxScore} for ${student.name}.`,
+  }).catch(() => {});
 
   // A new score can start (or resolve) a three-test dip — check for a fresh alert.
   await runAlertCheck().catch((err) => console.error("[alerts] post-score check failed", err));
