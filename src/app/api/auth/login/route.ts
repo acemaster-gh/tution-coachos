@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getUserByEmail } from "@/lib/db";
-import { createSessionToken, verifyPassword, sessionCookieOptions, SESSION_COOKIE } from "@/lib/auth";
+import { createClient } from "@/utils/supabase/server";
 
 export async function POST(request: Request) {
   let body: { email?: string; password?: string };
@@ -15,19 +14,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Enter both email and password." }, { status: 400 });
   }
 
-  const user = await getUserByEmail(email);
-  if (!user) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (error || !data.user) {
+    // Supabase distinguishes many failure reasons internally, but
+    // exposing which one lets an attacker enumerate valid emails —
+    // same deliberately-generic message regardless of cause.
     return NextResponse.json({ error: "No account matches that email and password." }, { status: 401 });
   }
 
-  const valid = await verifyPassword(password, user.passwordHash);
-  if (!valid) {
-    return NextResponse.json({ error: "No account matches that email and password." }, { status: 401 });
+  const { data: profile, error: profileError } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", data.user.id)
+    .single();
+
+  if (profileError || !profile) {
+    await supabase.auth.signOut();
+    return NextResponse.json({ error: "This account has no profile set up. Contact your institute admin." }, { status: 403 });
   }
 
-  const token = await createSessionToken({ sub: user.id, name: user.name, role: user.role });
-
-  const res = NextResponse.json({ ok: true, role: user.role });
-  res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions);
-  return res;
+  // The Supabase server client sets the session cookies itself as a side
+  // effect of signInWithPassword() above (via the cookie adapter in
+  // utils/supabase/server.ts) — no manual cookie-setting needed here,
+  // unlike the old custom-JWT version of this route.
+  return NextResponse.json({ ok: true, role: profile.role });
 }

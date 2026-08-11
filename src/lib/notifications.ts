@@ -1,4 +1,4 @@
-import { appendToCollection } from "./db";
+import { createAdminClient } from "@/utils/supabase/admin";
 import type { NotificationChannel, NotificationLogEntry } from "./types";
 
 interface SendResult {
@@ -12,7 +12,7 @@ async function sendEmail(to: string, subject: string, body: string): Promise<Sen
 
   if (!apiKey || !from) {
     console.log(`[email:unconfigured] to=${to} subject="${subject}"\n${body}`);
-    return { ok: true }; // "succeeds" as a logged dry-run, not a hard failure
+    return { ok: true };
   }
 
   try {
@@ -52,14 +52,14 @@ interface NotifyOptions {
   to: string;
   channel: NotificationChannel;
   body: string;
-  subject?: string; // email only
+  subject?: string;
 }
 
 /**
- * Sends through the configured provider for the given channel, falls back
- * to a console-logged dry run if that provider's env vars aren't set, and
- * always records the attempt to data/notifications.json so the admin
- * dashboard has an audit trail regardless of whether real sending is on.
+ * Sends through the configured provider, falls back to a console-logged
+ * dry run if unconfigured, and always records the attempt via the ADMIN
+ * client — there's deliberately no INSERT policy on `notifications` for
+ * regular users; it's a system-written audit log, never user-writable.
  */
 export async function notify({ to, channel, body, subject }: NotifyOptions): Promise<SendResult> {
   let result: SendResult;
@@ -70,17 +70,59 @@ export async function notify({ to, channel, body, subject }: NotifyOptions): Pro
     result = await sendTwilio(to, body, channel);
   }
 
-  const entry: NotificationLogEntry = {
-    id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    channel,
-    to,
-    subject,
-    body,
-    sentAt: new Date().toISOString(),
-    ok: result.ok,
-    error: result.error,
-  };
-  await appendToCollection<NotificationLogEntry>("notifications.json", entry);
+  const instituteId = process.env.INSTITUTE_ID;
+  if (instituteId) {
+    const admin = createAdminClient();
+    const { error } = await admin.from("notifications").insert({
+      institute_id: instituteId,
+      channel,
+      recipient: to,
+      subject,
+      body,
+      ok: result.ok,
+      error: result.error,
+    });
+    if (error) console.error("[notifications] failed to write audit log entry:", error.message);
+  } else {
+    console.warn("[notifications] INSTITUTE_ID not set — skipping audit log write.");
+  }
 
   return result;
+}
+
+interface NotificationRow {
+  id: string;
+  channel: NotificationChannel;
+  recipient: string;
+  subject: string | null;
+  body: string;
+  sent_at: string;
+  ok: boolean;
+  error: string | null;
+}
+
+function mapNotification(row: NotificationRow): NotificationLogEntry {
+  return {
+    id: row.id,
+    channel: row.channel,
+    to: row.recipient,
+    subject: row.subject ?? undefined,
+    body: row.body,
+    sentAt: row.sent_at,
+    ok: row.ok,
+    error: row.error ?? undefined,
+  };
+}
+
+/** Admin-only read, via the caller's own RLS-scoped session (not the admin client). */
+export async function listNotifications(limit = 100): Promise<NotificationLogEntry[]> {
+  const { createClient } = await import("@/utils/supabase/server");
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("notifications")
+    .select("id, channel, recipient, subject, body, sent_at, ok, error")
+    .order("sent_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(`Failed to list notifications: ${error.message}`, { cause: error });
+  return (data as NotificationRow[]).map(mapNotification);
 }

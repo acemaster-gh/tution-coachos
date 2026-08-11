@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
-import { enrollStudent } from "@/lib/enrollment";
-import { DuplicateError } from "@/lib/db";
-import { logAuditEvent } from "@/lib/audit";
+import { enrollStudent, EnrollmentError } from "@/lib/enrollment";
+import { enrollSchema, firstIssueMessage } from "@/lib/validation";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -11,44 +10,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Only admins can enroll students." }, { status: 403 });
   }
 
-  let body: {
-    leadId?: string;
-    studentName?: string;
-    grade?: string;
-    subject?: string;
-    tutorId?: string;
-    parentName?: string;
-    parentEmail?: string;
-  };
+  let raw: unknown;
   try {
-    body = await request.json();
+    raw = await request.json();
   } catch {
     return NextResponse.json({ error: "Malformed request." }, { status: 400 });
   }
 
-  const { studentName, grade, subject, tutorId, parentName, parentEmail, leadId } = body;
-  if (!studentName || !grade || !subject || !tutorId || !parentName || !parentEmail) {
-    return NextResponse.json(
-      { error: "studentName, grade, subject, tutorId, parentName, and parentEmail are all required." },
-      { status: 400 }
-    );
+  const parsed = enrollSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json({ error: firstIssueMessage(parsed.error) }, { status: 400 });
   }
 
-  // No pre-flight email check — enrollStudent uses appendToCollectionUnique
-  // which atomically checks inside the file lock, eliminating the TOCTOU race
-  // (Security fix #1). DuplicateError is thrown if the email already exists.
   try {
-    const result = await enrollStudent({ leadId, studentName, grade, subject, tutorId, parentName, parentEmail });
-    logAuditEvent({
-      userId: session.sub, userName: session.name, role: session.role,
-      action: "enroll_student", target: result.studentId,
-      detail: `Enrolled ${studentName} (parent: ${parentName}, ${parentEmail}).`,
-    }).catch(() => {});
+    const result = await enrollStudent(parsed.data);
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {
-    if (err instanceof DuplicateError) {
-      return NextResponse.json({ error: err.message }, { status: 409 });
+    if (err instanceof EnrollmentError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
     }
-    throw err; // unexpected — let the global error handler deal with it
+    console.error("[enroll] unexpected failure", err);
+    return NextResponse.json({ error: "Enrollment failed unexpectedly." }, { status: 500 });
   }
 }

@@ -1,60 +1,37 @@
 import { NextResponse } from "next/server";
-import { appendToCollection } from "@/lib/db";
+import { addLead } from "@/lib/leads";
 import { notifyAdminOfNewLead } from "@/lib/messaging";
-import { checkLeadRate, getClientIP } from "@/lib/rate-limit";
-import type { Lead } from "@/lib/types";
-
-interface LeadPayload {
-  parentName?: string;
-  phone?: string;
-  grade?: string;
-  subject?: string;
-}
+import { leadSchema, firstIssueMessage } from "@/lib/validation";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 export async function POST(request: Request) {
-  // ── Rate limiting (Security fix #4) ────────────────────────────────
-  // 3 submissions per minute per IP — prevents spam that racks up
-  // notification costs (each lead triggers Twilio + Resend calls).
-  const ip = getClientIP(request);
-  const limit = checkLeadRate(ip);
+  // Public, unauthenticated endpoint — cheap for a spammer to hit
+  // repeatedly, real cost to the business (each submission triggers
+  // live notification sends once Twilio/Resend are configured). 5
+  // submissions per IP, refilling at 1 every 2 minutes — generous for a
+  // real family enquiring, punishing for a script.
+  const ip = getClientIp(request);
+  const limit = checkRateLimit(`lead:${ip}`, { capacity: 5, refillPerSecond: 1 / 120 });
   if (!limit.allowed) {
     return NextResponse.json(
-      { error: "Too many enquiries — please wait a minute and try again." },
-      {
-        status: 429,
-        headers: { "Retry-After": String(limit.retryAfterSeconds) },
-      }
+      { error: "Too many enquiries from this connection. Please try again shortly." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
     );
   }
 
-  let body: LeadPayload;
+  let raw: unknown;
   try {
-    body = await request.json();
+    raw = await request.json();
   } catch {
     return NextResponse.json({ error: "The enquiry data was malformed." }, { status: 400 });
   }
 
-  const { parentName, phone, grade, subject } = body;
-  if (!parentName || !phone || !grade || !subject) {
-    return NextResponse.json(
-      { error: "Parent name, phone, grade, and subject are all required." },
-      { status: 400 }
-    );
+  const parsed = leadSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json({ error: firstIssueMessage(parsed.error) }, { status: 400 });
   }
 
-  const lead: Lead = {
-    id: `lead_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    parentName,
-    phone,
-    grade,
-    subject,
-    receivedAt: new Date().toISOString(),
-  };
-
-  // JSON-file append is fine for a demo; concurrent writes under real
-  // traffic need a real DB (Phase 4 note applies here too) because this
-  // read-modify-write isn't atomic across simultaneous requests.
-  await appendToCollection<Lead>("leads.json", lead);
+  const lead = await addLead(parsed.data);
   await notifyAdminOfNewLead(lead);
 
   return NextResponse.json({ ok: true });
