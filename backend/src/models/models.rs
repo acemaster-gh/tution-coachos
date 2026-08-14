@@ -23,6 +23,23 @@ pub struct User {
     pub google_id: Option<String>,
 }
 
+#[derive(sqlx::FromRow, Serialize, Deserialize)]
+pub struct Student {
+    pub id: Uuid,
+    pub name: String,
+    pub grade: String,
+    pub tutor_id: Option<Uuid>,
+    pub parent_id: Option<Uuid>,
+}
+
+#[derive(Deserialize)]
+pub struct NewStudentReq {
+    pub name: String,
+    pub grade: String,
+    pub tutor_id: Option<Uuid>,
+    pub parent_id: Option<Uuid>,
+}
+
 #[derive(Deserialize)]
 pub struct RegisterReq {
     pub email: String,

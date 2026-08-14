@@ -11,6 +11,7 @@ use oauth2::{
     Scope, TokenResponse,
 };
 use uuid::Uuid;
+use rand_core::OsRng;
 
 use crate::models::{
     AppState, Claims, GoogleUserInfo, LoginReq, OAuthCallbackQuery, RegisterReq, User,
@@ -61,17 +62,16 @@ pub async fn register(
     let password_hash = argon2::PasswordHasher::hash_password(
         &argon2::Argon2::default(),
         payload.password.as_bytes(),
-        &argon2::password_hash::SaltString::generate(&mut argon2::rand_core::OsRng),
+        &argon2::password_hash::SaltString::generate(&mut OsRng),
     )
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
     .to_string();
 
-    let user = sqlx::query_as!(
-        User,
+    let user = sqlx::query_as::<_, User>(
         "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, google_id",
-        payload.email,
-        password_hash
     )
+    .bind(&payload.email)
+    .bind(&password_hash)
     .fetch_one(&state.db)
     .await
     .map_err(|e| (StatusCode::BAD_REQUEST, format!("Email exists or DB error: {}", e)))?;
@@ -83,16 +83,17 @@ pub async fn login(
     State(state): State<AppState>,
     Json(payload): Json<LoginReq>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let row = sqlx::query!(
+    let row = sqlx::query_as::<_, (Uuid, Option<String>)>(
         "SELECT id, password_hash FROM users WHERE email = $1",
-        payload.email
     )
+    .bind(&payload.email)
     .fetch_optional(&state.db)
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
     .ok_or((StatusCode::UNAUTHORIZED, "Invalid credentials".to_string()))?;
 
-    let hash = row.password_hash.ok_or((
+    let (user_id, hash) = row;
+    let hash = hash.ok_or((
         StatusCode::UNAUTHORIZED,
         "Please sign in via OAuth provider".to_string(),
     ))?;
@@ -110,7 +111,7 @@ pub async fn login(
         return Err((StatusCode::UNAUTHORIZED, "Invalid credentials".to_string()));
     }
 
-    let token = generate_jwt(row.id, &state.jwt_secret)?;
+    let token = generate_jwt(user_id, &state.jwt_secret)?;
     Ok(Json(serde_json::json!({ "token": token })))
 }
 
@@ -150,36 +151,35 @@ pub async fn google_callback(
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    let user_id = match sqlx::query!(
+    let user_id = match sqlx::query_as::<_, (Uuid,)>(
         "SELECT id FROM users WHERE google_id = $1 OR email = $2",
-        user_info.id,
-        user_info.email
     )
+    .bind(&user_info.id)
+    .bind(&user_info.email)
     .fetch_optional(&state.db)
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
     {
-        Some(record) => {
-            sqlx::query!(
+        Some((id,)) => {
+            let _ = sqlx::query(
                 "UPDATE users SET google_id = $1 WHERE id = $2",
-                user_info.id,
-                record.id
             )
+            .bind(&user_info.id)
+            .bind(id)
             .execute(&state.db)
-            .await
-            .ok();
-            record.id
+            .await;
+            id
         }
         None => {
-            let new_user = sqlx::query!(
+            let new_user = sqlx::query_as::<_, (Uuid,)>(
                 "INSERT INTO users (email, google_id) VALUES ($1, $2) RETURNING id",
-                user_info.email,
-                user_info.id
             )
+            .bind(&user_info.email)
+            .bind(&user_info.id)
             .fetch_one(&state.db)
             .await
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-            new_user.id
+            new_user.0
         }
     };
 

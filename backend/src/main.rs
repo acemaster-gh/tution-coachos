@@ -1,5 +1,6 @@
-mod auth;
+mod handlers;
 mod models;
+mod routes;
 
 use axum::{
     extract::State,
@@ -12,18 +13,17 @@ use oauth2::{basic::BasicClient, AuthUrl, ClientId, ClientSecret, RedirectUrl, T
 use sqlx::PgPool;
 use std::env;
 
-use auth::{google_callback, google_login, login, register, AuthenticatedUser};
+use handlers::{google_callback, google_login, login, register, AuthenticatedUser};
 use models::{AppState, User};
 
 async fn get_me(
     AuthenticatedUser(user_id): AuthenticatedUser,
     State(state): State<AppState>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let user = sqlx::query_as!(
-        User,
+    let user = sqlx::query_as::<_, User>(
         "SELECT id, email, google_id FROM users WHERE id = $1",
-        user_id
     )
+    .bind(user_id)
     .fetch_one(&state.db)
     .await
     .map_err(|_| (StatusCode::NOT_FOUND, "User not found".to_string()))?;
@@ -63,15 +63,19 @@ async fn main() {
         jwt_secret: env::var("JWT_SECRET").unwrap_or_else(|_| "super-secret-key".to_string()),
     };
 
+    let api_router = crate::routes::routes::create_router();
+
     let app = Router::new()
+        .merge(api_router)
         .route("/auth/register", post(register))
         .route("/auth/login", post(login))
         .route("/auth/google", get(google_login))
         .route("/auth/google/callback", get(google_callback))
-        .route("/me", get(get_me))
-        .with_state(state);
+        .route("/me", get(get_me));
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     println!("Server running on http://localhost:3000");
-    axum::serve(listener, app).await.unwrap();
+    let make_svc = app.into_make_service_with_state(state);
+    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], 3000));
+    hyper::Server::bind(&addr).serve(make_svc).await.unwrap();
 }
