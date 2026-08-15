@@ -1,6 +1,6 @@
 use axum::{
     async_trait,
-    extract::{FromRef, FromRequestParts, Query, State},
+    extract::{FromRequestParts, Query},
     http::{header, request::Parts, StatusCode},
     response::{IntoResponse, Redirect},
     Json,
@@ -22,13 +22,12 @@ pub struct AuthenticatedUser(pub Uuid);
 #[async_trait]
 impl<S> FromRequestParts<S> for AuthenticatedUser
 where
-    AppState: FromRef<S>,
     S: Send + Sync,
 {
     type Rejection = (StatusCode, &'static str);
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let state = AppState::from_ref(state);
+        let state = crate::app_state_global::get();
 
         let auth_header = parts
             .headers
@@ -55,10 +54,9 @@ where
     }
 }
 
-pub async fn register(
-    State(state): State<AppState>,
-    Json(payload): Json<RegisterReq>,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
+pub async fn register(Json(payload): Json<RegisterReq>) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let state = crate::app_state_global::get();
+
     let password_hash = argon2::PasswordHasher::hash_password(
         &argon2::Argon2::default(),
         payload.password.as_bytes(),
@@ -79,10 +77,9 @@ pub async fn register(
     Ok((StatusCode::CREATED, Json(user)))
 }
 
-pub async fn login(
-    State(state): State<AppState>,
-    Json(payload): Json<LoginReq>,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
+pub async fn login(Json(payload): Json<LoginReq>) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let state = crate::app_state_global::get();
+
     let row = sqlx::query_as::<_, (Uuid, Option<String>)>(
         "SELECT id, password_hash FROM users WHERE email = $1",
     )
@@ -115,7 +112,8 @@ pub async fn login(
     Ok(Json(serde_json::json!({ "token": token })))
 }
 
-pub async fn google_login(State(state): State<AppState>) -> Redirect {
+pub async fn google_login() -> Redirect {
+    let state = crate::app_state_global::get();
     let (pkce_challenge, _pkce_verifier) = PkceCodeChallenge::new_random_sha256();
     let (auth_url, _csrf_token) = state
         .oauth_client
@@ -129,10 +127,8 @@ pub async fn google_login(State(state): State<AppState>) -> Redirect {
     Redirect::temporary(auth_url.as_str())
 }
 
-pub async fn google_callback(
-    State(state): State<AppState>,
-    Query(query): Query<OAuthCallbackQuery>,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
+pub async fn google_callback(Query(query): Query<OAuthCallbackQuery>) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let state = crate::app_state_global::get();
     let token_res = state
         .oauth_client
         .exchange_code(AuthorizationCode::new(query.code))

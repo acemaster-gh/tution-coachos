@@ -1,11 +1,11 @@
-use axum::{extract::{State, Path}, http::StatusCode, Json};
+use axum::{extract::Path, http::StatusCode, Json};
 use uuid::Uuid;
 
-use crate::models::{AppState, NewStudentReq, Student};
+use crate::models::{NewStudentReq, Student};
+use crate::app_state_global;
 
-pub async fn list_students(
-    State(state): State<AppState>,
-) -> Result<Json<Vec<Student>>, (StatusCode, String)> {
+pub async fn list_students() -> Result<Json<Vec<Student>>, (StatusCode, String)> {
+    let state = app_state_global::get();
     let students = sqlx::query_as::<_, Student>("SELECT id, name, grade, tutor_id, parent_id FROM students")
         .fetch_all(&state.db)
         .await
@@ -14,10 +14,8 @@ pub async fn list_students(
     Ok(Json(students))
 }
 
-pub async fn create_student(
-    State(state): State<AppState>,
-    Json(payload): Json<NewStudentReq>,
-) -> Result<(StatusCode, Json<Student>), (StatusCode, String)> {
+pub async fn create_student(Json(payload): Json<NewStudentReq>) -> Result<(StatusCode, Json<Student>), (StatusCode, String)> {
+    let state = app_state_global::get();
     let id = Uuid::new_v4();
     let student = sqlx::query_as::<_, Student>(
         "INSERT INTO students (id, name, grade, tutor_id, parent_id) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, grade, tutor_id, parent_id",
@@ -34,10 +32,8 @@ pub async fn create_student(
     Ok((StatusCode::CREATED, Json(student)))
 }
 
-pub async fn get_student(
-    State(state): State<AppState>,
-    Path(student_id): Path<Uuid>,
-) -> Result<Json<Student>, (StatusCode, String)> {
+pub async fn get_student(Path(student_id): Path<Uuid>) -> Result<Json<Student>, (StatusCode, String)> {
+    let state = app_state_global::get();
     let student = sqlx::query_as::<_, Student>(
         "SELECT id, name, grade, tutor_id, parent_id FROM students WHERE id = $1",
     )
@@ -49,10 +45,8 @@ pub async fn get_student(
     Ok(Json(student))
 }
 
-pub async fn delete_student(
-    State(state): State<AppState>,
-    Path(student_id): Path<Uuid>,
-) -> Result<StatusCode, (StatusCode, String)> {
+pub async fn delete_student(Path(student_id): Path<Uuid>) -> Result<StatusCode, (StatusCode, String)> {
+    let state = app_state_global::get();
     sqlx::query("DELETE FROM students WHERE id = $1")
         .bind(student_id)
         .execute(&state.db)

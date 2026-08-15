@@ -1,9 +1,9 @@
 mod handlers;
 mod models;
 mod routes;
+mod app_state_global;
 
 use axum::{
-    extract::State,
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
@@ -16,10 +16,8 @@ use std::env;
 use handlers::{google_callback, google_login, login, register, AuthenticatedUser};
 use models::{AppState, User};
 
-async fn get_me(
-    AuthenticatedUser(user_id): AuthenticatedUser,
-    State(state): State<AppState>,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
+async fn get_me(AuthenticatedUser(user_id): AuthenticatedUser,) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let state = crate::app_state_global::get();
     let user = sqlx::query_as::<_, User>(
         "SELECT id, email, google_id FROM users WHERE id = $1",
     )
@@ -63,6 +61,9 @@ async fn main() {
         jwt_secret: env::var("JWT_SECRET").unwrap_or_else(|_| "super-secret-key".to_string()),
     };
 
+    // Initialize global state for handlers
+    crate::app_state_global::init(state.clone());
+
     let api_router = crate::routes::routes::create_router();
 
     let app = Router::new()
@@ -75,7 +76,9 @@ async fn main() {
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     println!("Server running on http://localhost:3000");
-    let make_svc = app.into_make_service_with_state(state);
-    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], 3000));
-    hyper::Server::bind(&addr).serve(make_svc).await.unwrap();
+    // Router is state-less now; we use the global state in handlers. Use axum's
+    // `into_make_service` for a Router<()> and run with hyper.
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    println!("Server running on http://localhost:3000");
+    axum::serve(listener, app).await.unwrap();
 }
