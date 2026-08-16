@@ -6,7 +6,7 @@ mod app_state_global;
 use axum::{
     http::StatusCode,
     response::IntoResponse,
-    routing::{get, post},
+    routing::get,
     Json, Router,
 };
 use oauth2::{basic::BasicClient, AuthUrl, ClientId, ClientSecret, RedirectUrl, TokenUrl};
@@ -15,9 +15,9 @@ use std::env;
 
 use handlers::{google_callback, google_login, login, register, AuthenticatedUser};
 use models::{AppState, User};
+use axum::extract::State;
 
-async fn get_me(AuthenticatedUser(user_id): AuthenticatedUser,) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let state = crate::app_state_global::get();
+async fn get_me(State(state): State<AppState>, AuthenticatedUser(user_id): AuthenticatedUser,) -> Result<impl IntoResponse, (StatusCode, String)> {
     let user = sqlx::query_as::<_, User>(
         "SELECT id, email, google_id FROM users WHERE id = $1",
     )
@@ -61,24 +61,20 @@ async fn main() {
         jwt_secret: env::var("JWT_SECRET").unwrap_or_else(|_| "super-secret-key".to_string()),
     };
 
-    // Initialize global state for handlers
-    crate::app_state_global::init(state.clone());
-
-    let api_router = crate::routes::routes::create_router();
+    let api_router = crate::routes::routes::create_router(state.clone());
 
     let app = Router::new()
         .merge(api_router)
-        .route("/auth/register", post(register))
-        .route("/auth/login", post(login))
-        .route("/auth/google", get(google_login))
-        .route("/auth/google/callback", get(google_callback))
-        .route("/me", get(get_me));
+        .route("/me", get(get_me))
+        .with_state(state);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    println!("Server running on http://localhost:3000");
-    // Router is state-less now; we use the global state in handlers. Use axum's
-    // `into_make_service` for a Router<()> and run with hyper.
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    println!("Server running on http://localhost:3000");
-    axum::serve(listener, app).await.unwrap();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:8080")
+        .await
+        .unwrap();
+
+    println!("Server running on http://localhost:8080");
+
+    axum::serve(listener, app)
+        .await
+        .unwrap();
 }

@@ -1,11 +1,10 @@
-use axum::{http::StatusCode, Json};
+use axum::{extract::State, http::StatusCode, Json};
 use uuid::Uuid;
 
 use crate::models::{Lead, NewLeadReq};
-use crate::app_state_global;
+use crate::models::AppState;
 
-pub async fn list_leads() -> Result<Json<Vec<Lead>>, (StatusCode, String)> {
-    let state = app_state_global::get();
+pub async fn list_leads(State(state): State<AppState>) -> Result<Json<Vec<Lead>>, (StatusCode, String)> {
     let leads = sqlx::query_as::<_, Lead>("SELECT id, parent_name, phone, grade, subject, received_at, converted FROM leads")
         .fetch_all(&state.db)
         .await
@@ -14,8 +13,7 @@ pub async fn list_leads() -> Result<Json<Vec<Lead>>, (StatusCode, String)> {
     Ok(Json(leads))
 }
 
-pub async fn create_lead(Json(payload): Json<NewLeadReq>) -> Result<(StatusCode, Json<Lead>), (StatusCode, String)> {
-    let state = app_state_global::get();
+pub async fn create_lead(State(state): State<AppState>, Json(payload): Json<NewLeadReq>) -> Result<(StatusCode, Json<Lead>), (StatusCode, String)> {
     let id = Uuid::new_v4();
     let lead = sqlx::query_as::<_, Lead>(
         "INSERT INTO leads (id, parent_name, phone, grade, subject, received_at, converted) VALUES ($1, $2, $3, $4, $5, now(), false) RETURNING id, parent_name, phone, grade, subject, received_at, converted",

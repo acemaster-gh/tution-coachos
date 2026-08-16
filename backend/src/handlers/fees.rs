@@ -1,11 +1,10 @@
-use axum::{extract::Path, http::StatusCode, Json};
+use axum::{extract::{Path, State}, http::StatusCode, Json};
 use uuid::Uuid;
 
 use crate::models::{Fee, NewFeeReq};
-use crate::app_state_global;
+use crate::models::AppState;
 
-pub async fn list_fees() -> Result<Json<Vec<Fee>>, (StatusCode, String)> {
-    let state = app_state_global::get();
+pub async fn list_fees(State(state): State<AppState>) -> Result<Json<Vec<Fee>>, (StatusCode, String)> {
     let fees = sqlx::query_as::<_, Fee>("SELECT id, student_id, amount, due_date, status, paid_at FROM fees")
         .fetch_all(&state.db)
         .await
@@ -14,8 +13,7 @@ pub async fn list_fees() -> Result<Json<Vec<Fee>>, (StatusCode, String)> {
     Ok(Json(fees))
 }
 
-pub async fn create_fee(Json(payload): Json<NewFeeReq>) -> Result<(StatusCode, Json<Fee>), (StatusCode, String)> {
-    let state = app_state_global::get();
+pub async fn create_fee(State(state): State<AppState>, Json(payload): Json<NewFeeReq>) -> Result<(StatusCode, Json<Fee>), (StatusCode, String)> {
     let id = Uuid::new_v4();
     let fee = sqlx::query_as::<_, Fee>(
         "INSERT INTO fees (id, student_id, amount, due_date, status) VALUES ($1, $2, $3, $4, 'pending') RETURNING id, student_id, amount, due_date, status, paid_at",
@@ -31,8 +29,7 @@ pub async fn create_fee(Json(payload): Json<NewFeeReq>) -> Result<(StatusCode, J
     Ok((StatusCode::CREATED, Json(fee)))
 }
 
-pub async fn get_fee(Path(fee_id): Path<Uuid>) -> Result<Json<Fee>, (StatusCode, String)> {
-    let state = app_state_global::get();
+pub async fn get_fee(State(state): State<AppState>, Path(fee_id): Path<Uuid>) -> Result<Json<Fee>, (StatusCode, String)> {
     let fee = sqlx::query_as::<_, Fee>(
         "SELECT id, student_id, amount, due_date, status, paid_at FROM fees WHERE id = $1",
     )
@@ -44,8 +41,7 @@ pub async fn get_fee(Path(fee_id): Path<Uuid>) -> Result<Json<Fee>, (StatusCode,
     Ok(Json(fee))
 }
 
-pub async fn delete_fee(Path(fee_id): Path<Uuid>) -> Result<StatusCode, (StatusCode, String)> {
-    let state = app_state_global::get();
+pub async fn delete_fee(State(state): State<AppState>, Path(fee_id): Path<Uuid>) -> Result<StatusCode, (StatusCode, String)> {
     sqlx::query("DELETE FROM fees WHERE id = $1")
         .bind(fee_id)
         .execute(&state.db)

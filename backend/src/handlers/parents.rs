@@ -1,11 +1,10 @@
-use axum::{extract::Path, http::StatusCode, Json};
+use axum::{extract::{Path, State}, http::StatusCode, Json};
 use uuid::Uuid;
 
 use crate::models::{NewParentReq, Parent};
-use crate::app_state_global;
+use crate::models::AppState;
 
-pub async fn list_parents() -> Result<Json<Vec<Parent>>, (StatusCode, String)> {
-    let state = app_state_global::get();
+pub async fn list_parents(State(state): State<AppState>) -> Result<Json<Vec<Parent>>, (StatusCode, String)> {
     let parents = sqlx::query_as::<_, Parent>("SELECT id, name, phone, email FROM parents")
         .fetch_all(&state.db)
         .await
@@ -14,8 +13,7 @@ pub async fn list_parents() -> Result<Json<Vec<Parent>>, (StatusCode, String)> {
     Ok(Json(parents))
 }
 
-pub async fn create_parent(Json(payload): Json<NewParentReq>) -> Result<(StatusCode, Json<Parent>), (StatusCode, String)> {
-    let state = app_state_global::get();
+pub async fn create_parent(State(state): State<AppState>, Json(payload): Json<NewParentReq>) -> Result<(StatusCode, Json<Parent>), (StatusCode, String)> {
     let id = Uuid::new_v4();
     let parent = sqlx::query_as::<_, Parent>(
         "INSERT INTO parents (id, name, phone, email) VALUES ($1, $2, $3, $4) RETURNING id, name, phone, email",
@@ -31,8 +29,7 @@ pub async fn create_parent(Json(payload): Json<NewParentReq>) -> Result<(StatusC
     Ok((StatusCode::CREATED, Json(parent)))
 }
 
-pub async fn get_parent(Path(parent_id): Path<Uuid>) -> Result<Json<Parent>, (StatusCode, String)> {
-    let state = app_state_global::get();
+pub async fn get_parent(State(state): State<AppState>, Path(parent_id): Path<Uuid>) -> Result<Json<Parent>, (StatusCode, String)> {
     let parent = sqlx::query_as::<_, Parent>(
         "SELECT id, name, phone, email FROM parents WHERE id = $1",
     )
@@ -44,8 +41,7 @@ pub async fn get_parent(Path(parent_id): Path<Uuid>) -> Result<Json<Parent>, (St
     Ok(Json(parent))
 }
 
-pub async fn delete_parent(Path(parent_id): Path<Uuid>) -> Result<StatusCode, (StatusCode, String)> {
-    let state = app_state_global::get();
+pub async fn delete_parent(State(state): State<AppState>, Path(parent_id): Path<Uuid>) -> Result<StatusCode, (StatusCode, String)> {
     sqlx::query("DELETE FROM parents WHERE id = $1")
         .bind(parent_id)
         .execute(&state.db)
