@@ -11,7 +11,7 @@ use axum::{
 use crate::models::AppState;
 
 use crate::handlers::{
-    auth, health, home,
+    auth, attendance::{list_attendance, mark_attendance}, health, home,
     list_students, create_student, get_student, delete_student,
     list_parents, create_parent, get_parent, delete_parent,
     list_fees, create_fee, get_fee, delete_fee,
@@ -70,7 +70,8 @@ pub fn create_router(state: AppState) -> Router<crate::models::AppState> {
         .route("/parents/:id", get(get_parent).delete(delete_parent))
         .route("/fees", get(list_fees).post(create_fee))
         .route("/fees/:id", get(get_fee).delete(delete_fee))
-        .route("/leads", get(list_leads).post(create_lead));
+        .route("/leads", get(list_leads).post(create_lead))
+        .route("/attendance", get(list_attendance).post(mark_attendance));
 
     let protected_routes = protected_routes.layer(middleware::from_fn_with_state(
         state,

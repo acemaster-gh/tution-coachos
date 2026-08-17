@@ -1,6 +1,7 @@
 use oauth2::basic::BasicClient;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
+use std::str::FromStr;
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -10,9 +11,50 @@ pub struct AppState {
     pub jwt_secret: String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum UserRole {
+    Admin,
+    Tutor,
+    Parent,
+}
+
+impl UserRole {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Admin => "admin",
+            Self::Tutor => "tutor",
+            Self::Parent => "parent",
+        }
+    }
+
+    pub fn from_str(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "admin" => Some(Self::Admin),
+            "tutor" => Some(Self::Tutor),
+            "parent" => Some(Self::Parent),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for UserRole {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl FromStr for UserRole {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Self::from_str(value).ok_or_else(|| format!("invalid role: {value}"))
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String,
+    pub role: String,
     pub exp: usize,
 }
 
@@ -20,7 +62,9 @@ pub struct Claims {
 pub struct User {
     pub id: Uuid,
     pub email: String,
+    pub role: String,
     pub google_id: Option<String>,
+    pub student_id: Option<Uuid>,
 }
 
 #[derive(sqlx::FromRow, Serialize, Deserialize)]
@@ -44,6 +88,8 @@ pub struct NewStudentReq {
 pub struct RegisterReq {
     pub email: String,
     pub password: String,
+    #[serde(default)]
+    pub role: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -113,6 +159,22 @@ pub struct NewLeadReq {
     pub phone: String,
     pub grade: String,
     pub subject: String,
+}
+
+#[derive(sqlx::FromRow, Serialize, Deserialize)]
+pub struct Attendance {
+    pub id: Uuid,
+    pub student_id: Uuid,
+    pub date: chrono::NaiveDate,
+    pub present: bool,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Deserialize)]
+pub struct NewAttendanceReq {
+    pub student_id: Uuid,
+    pub date: chrono::NaiveDate,
+    pub present: bool,
 }
 
 #[derive(sqlx::FromRow, Serialize, Deserialize)]

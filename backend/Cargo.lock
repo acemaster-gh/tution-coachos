@@ -140,7 +140,6 @@ dependencies = [
  "hyper 0.14.32",
  "jsonwebtoken",
  "oauth2",
- "once_cell",
  "rand_core",
  "reqwest",
  "serde",

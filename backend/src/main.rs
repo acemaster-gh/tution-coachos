@@ -1,7 +1,6 @@
 mod handlers;
 mod models;
 mod routes;
-mod app_state_global;
 
 use axum::{
     http::StatusCode,
@@ -13,15 +12,18 @@ use oauth2::{basic::BasicClient, AuthUrl, ClientId, ClientSecret, RedirectUrl, T
 use sqlx::PgPool;
 use std::env;
 
-use handlers::{google_callback, google_login, login, register, AuthenticatedUser};
-use models::{AppState, User};
 use axum::extract::State;
+use handlers::AuthenticatedUser;
+use models::{AppState, User};
 
-async fn get_me(State(state): State<AppState>, AuthenticatedUser(user_id): AuthenticatedUser,) -> Result<impl IntoResponse, (StatusCode, String)> {
+async fn get_me(
+    State(state): State<AppState>,
+    auth: AuthenticatedUser,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
     let user = sqlx::query_as::<_, User>(
-        "SELECT id, email, google_id FROM users WHERE id = $1",
+        "SELECT id, email, role, google_id, student_id FROM users WHERE id = $1",
     )
-    .bind(user_id)
+    .bind(auth.user_id)
     .fetch_one(&state.db)
     .await
     .map_err(|_| (StatusCode::NOT_FOUND, "User not found".to_string()))?;
