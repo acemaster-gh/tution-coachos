@@ -45,6 +45,16 @@ CREATE TABLE attendance (
   UNIQUE (student_id, date)
 );
 
+CREATE TABLE scores (
+  id uuid PRIMARY KEY,
+  student_id uuid NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  subject text NOT NULL,
+  score numeric NOT NULL,
+  max_score numeric NOT NULL,
+  date date NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
 CREATE TABLE fees (
   id uuid PRIMARY KEY,
   student_id uuid REFERENCES students(id),

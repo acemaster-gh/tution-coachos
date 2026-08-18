@@ -178,6 +178,26 @@ pub struct NewAttendanceReq {
 }
 
 #[derive(sqlx::FromRow, Serialize, Deserialize)]
+pub struct Score {
+    pub id: Uuid,
+    pub student_id: Uuid,
+    pub subject: String,
+    pub score: f64,
+    pub max_score: f64,
+    pub date: chrono::NaiveDate,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Deserialize)]
+pub struct NewScoreReq {
+    pub student_id: Uuid,
+    pub subject: String,
+    pub score: f64,
+    pub max_score: f64,
+    pub date: chrono::NaiveDate,
+}
+
+#[derive(sqlx::FromRow, Serialize, Deserialize)]
 pub struct Resource {
     pub id: Uuid,
     pub title: String,
