@@ -17,6 +17,7 @@ use crate::handlers::{
     list_fees, create_fee, get_fee, delete_fee,
     list_leads, create_lead,
     scores::{list_scores, add_score},
+    resources::{list_resources, create_resource},
 };
 
 use jsonwebtoken::{decode, DecodingKey, Validation};
@@ -73,7 +74,8 @@ pub fn create_router(state: AppState) -> Router<crate::models::AppState> {
         .route("/fees/:id", get(get_fee).delete(delete_fee))
         .route("/leads", get(list_leads).post(create_lead))
         .route("/attendance", get(list_attendance).post(mark_attendance))
-        .route("/scores", get(list_scores).post(add_score));
+        .route("/scores", get(list_scores).post(add_score))
+        .route("/resources", get(list_resources).post(create_resource));
 
     let protected_routes = protected_routes.layer(middleware::from_fn_with_state(
         state,
