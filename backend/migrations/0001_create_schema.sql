@@ -55,6 +55,17 @@ CREATE TABLE scores (
   created_at timestamptz DEFAULT now()
 );
 
+CREATE TABLE notifications (
+  id uuid PRIMARY KEY,
+  channel text NOT NULL,
+  to_address text NOT NULL,
+  subject text,
+  body text NOT NULL,
+  sent_at timestamptz DEFAULT now(),
+  ok boolean DEFAULT true,
+  error text
+);
+
 CREATE TABLE fees (
   id uuid PRIMARY KEY,
   student_id uuid REFERENCES students(id),

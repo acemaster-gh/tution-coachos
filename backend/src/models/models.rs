@@ -218,3 +218,23 @@ pub struct NewResourceReq {
     pub url: String,
     pub uploaded_by: Option<Uuid>,
 }
+
+#[derive(sqlx::FromRow, Serialize, Deserialize)]
+pub struct Notification {
+    pub id: Uuid,
+    pub channel: String,
+    pub to_address: String,
+    pub subject: Option<String>,
+    pub body: String,
+    pub sent_at: chrono::DateTime<chrono::Utc>,
+    pub ok: bool,
+    pub error: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct NewNotificationReq {
+    pub channel: String,
+    pub to_address: String,
+    pub subject: Option<String>,
+    pub body: String,
+}
