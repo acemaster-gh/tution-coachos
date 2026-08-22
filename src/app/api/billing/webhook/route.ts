@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { markFeePaid } from "@/lib/fees";
+import { clearPendingOrder } from "@/lib/payment-orders";
 
 interface RazorpayWebhookPayload {
   event: string;
@@ -67,7 +68,8 @@ export async function POST(request: Request) {
 
     try {
       await markFeePaid(feeId);
-      console.log(`[razorpay-webhook] marked ${feeId} paid.`);
+      clearPendingOrder(feeId);
+      console.log(`[razorpay-webhook] marked ${feeId} paid and cleared its pending Razorpay order.`);
     } catch (err) {
       console.error(`[razorpay-webhook] failed to mark ${feeId} paid`, err);
       return NextResponse.json({ error: "Failed to update fee record." }, { status: 500 });
