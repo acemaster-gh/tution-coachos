@@ -61,6 +61,9 @@ async fn main() {
         db,
         oauth_client,
         jwt_secret: env::var("JWT_SECRET").unwrap_or_else(|_| "super-secret-key".to_string()),
+        razorpay_key_id: env::var("RAZORPAY_KEY_ID").unwrap_or_default(),
+        razorpay_key_secret: env::var("RAZORPAY_KEY_SECRET").unwrap_or_default(),
+        razorpay_webhook_secret: env::var("RAZORPAY_WEBHOOK_SECRET").unwrap_or_default(),
     };
 
     let api_router = crate::routes::routes::create_router(state.clone());

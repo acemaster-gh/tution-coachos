@@ -9,6 +9,9 @@ pub struct AppState {
     pub db: PgPool,
     pub oauth_client: BasicClient,
     pub jwt_secret: String,
+    pub razorpay_key_id: String,
+    pub razorpay_key_secret: String,
+    pub razorpay_webhook_secret: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

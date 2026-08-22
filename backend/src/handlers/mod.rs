@@ -8,6 +8,7 @@ pub mod students;
 pub mod parents;
 pub mod fees;
 pub mod leads;
+pub mod payments;
 
 // Re-export handler functions/types so callers can `use crate::handlers::{health, home}`
 pub use auth::*;
@@ -20,3 +21,4 @@ pub use students::*;
 pub use parents::*;
 pub use fees::*;
 pub use leads::*;
+pub use payments::*;

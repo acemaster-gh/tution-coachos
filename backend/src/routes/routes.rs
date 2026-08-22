@@ -17,8 +17,9 @@ use crate::handlers::{
     list_fees, create_fee, get_fee, delete_fee,
     list_leads, create_lead,
     scores::{list_scores, add_score},
-        notifications::{list_notifications, create_notification},
+    notifications::{list_notifications, create_notification},
     resources::{list_resources, create_resource},
+    create_payment_order, payment_webhook,
 };
 
 use jsonwebtoken::{decode, DecodingKey, Validation};
@@ -63,7 +64,8 @@ pub fn create_router(state: AppState) -> Router<crate::models::AppState> {
         .route("/auth/register", post(auth::register))
         .route("/auth/login", post(auth::login))
         .route("/auth/google", get(auth::google_login))
-        .route("/auth/google/callback", get(auth::google_callback));
+        .route("/auth/google/callback", get(auth::google_callback))
+        .route("/payments/webhook", post(payment_webhook));
 
     // Protected routes: require a valid JWT
     let protected_routes = Router::new()
@@ -73,6 +75,7 @@ pub fn create_router(state: AppState) -> Router<crate::models::AppState> {
         .route("/parents/:id", get(get_parent).delete(delete_parent))
         .route("/fees", get(list_fees).post(create_fee))
         .route("/fees/:id", get(get_fee).delete(delete_fee))
+        .route("/payments/create-order", post(create_payment_order))
         .route("/leads", get(list_leads).post(create_lead))
         .route("/attendance", get(list_attendance).post(mark_attendance))
         .route("/scores", get(list_scores).post(add_score))

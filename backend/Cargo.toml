@@ -19,3 +19,6 @@ dotenvy = "0.15"
 tower-http = { version = "0.5", features = ["cors"] }
 rand_core = "0.6"
 hyper = { version = "0.14", features = ["server"] }
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
