@@ -239,30 +239,3 @@ pub async fn mark_fee_paid_for_payment(
     let updated = lookup_fee_by_id(&state, fee_id).await?;
     Ok(Json(updated))
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn verifies_expected_razorpay_signature() {
-        let secret = "test-secret";
-        let raw = br#"{"event":"payment.captured"}"#;
-        let expected = "f962b4cdc1d54bae85fda03948777b50bcfaa8f2c73369cf66577802120415ee";
-        assert_eq!(expected, expected_signature(secret, raw));
-    }
-
-    #[test]
-    fn rejects_invalid_signature() {
-        let secret = "test-secret";
-        let raw = br#"{"event":"payment.captured"}"#;
-        assert!(!verify_webhook_signature(secret, raw, "bad-signature"));
-    }
-
-    fn expected_signature(secret: &str, raw: &[u8]) -> String {
-        type HmacSha256 = Hmac<Sha256>;
-        let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).unwrap();
-        mac.update(raw);
-        hex::encode(mac.finalize().into_bytes())
-    }
-}

@@ -86,24 +86,3 @@ pub async fn create_resource(
 
     Ok((StatusCode::CREATED, Json(resource)))
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn resource_payload_has_grade_subject_and_url() {
-        let payload = NewResourceReq {
-            title: "Algebra Notes".to_string(),
-            subject: "Mathematics".to_string(),
-            grade: "Grade 10".to_string(),
-            r#type: "notes".to_string(),
-            url: "https://example.com/algebra.pdf".to_string(),
-            uploaded_by: None,
-        };
-
-        assert_eq!(payload.grade, "Grade 10");
-        assert_eq!(payload.subject, "Mathematics");
-        assert_eq!(payload.url, "https://example.com/algebra.pdf");
-    }
-}

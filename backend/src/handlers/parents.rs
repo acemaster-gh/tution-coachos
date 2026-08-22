@@ -8,7 +8,7 @@ pub async fn list_parents(State(state): State<AppState>) -> Result<Json<Vec<Pare
     let parents = sqlx::query_as::<_, Parent>("SELECT id, name, phone, email FROM parents")
         .fetch_all(&state.db)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err((StatusCode::INTERNAL_SERVER_ERROR, "Failed to create Parent".to_string()))?;
 
     Ok(Json(parents))
 }
@@ -24,7 +24,7 @@ pub async fn create_parent(State(state): State<AppState>, Json(payload): Json<Ne
     .bind(&payload.email)
     .fetch_one(&state.db)
     .await
-    .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+    .map_err( (StatusCode::BAD_REQUEST, "Unable to create a parent".to_string()))?;
 
     Ok((StatusCode::CREATED, Json(parent)))
 }

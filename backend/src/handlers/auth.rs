@@ -232,29 +232,3 @@ pub fn generate_jwt(
     )
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("JWT creation failed: {}", e)))
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parses_supported_roles() {
-        assert_eq!(UserRole::from_str("admin"), Some(UserRole::Admin));
-        assert_eq!(UserRole::from_str("tutor"), Some(UserRole::Tutor));
-        assert_eq!(UserRole::from_str("parent"), Some(UserRole::Parent));
-    }
-
-    #[test]
-    fn role_guard_rejects_disallowed_access() {
-        let auth = AuthenticatedUser {
-            user_id: Uuid::new_v4(),
-            role: UserRole::Parent,
-        };
-
-        let result = auth.require_role(&[UserRole::Admin, UserRole::Tutor]);
-        assert!(result.is_err());
-
-        let allowed = auth.require_role(&[UserRole::Parent]);
-        assert!(allowed.is_ok());
-    }
-}

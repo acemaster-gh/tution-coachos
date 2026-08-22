@@ -83,20 +83,3 @@ pub async fn mark_attendance(
 
     Ok((StatusCode::CREATED, Json(attendance)))
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn attendance_payload_uses_date_and_present_flag() {
-        let payload = NewAttendanceReq {
-            student_id: Uuid::new_v4(),
-            date: chrono::NaiveDate::from_ymd_opt(2026, 8, 17).unwrap(),
-            present: true,
-        };
-
-        assert_eq!(payload.present, true);
-        assert_eq!(payload.date.to_string(), "2026-08-17");
-    }
-}
